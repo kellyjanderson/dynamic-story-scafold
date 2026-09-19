@@ -12,7 +12,8 @@ from typing import Iterator
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy import ForeignKey, String, create_engine, func, select
+from sqlalchemy import ForeignKey, String, URL, create_engine, event, func, select
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
 from .paths import database_path
@@ -45,6 +46,7 @@ class Build(Base):
     package_version: Mapped[str] = mapped_column(String(64))
     git_commit: Mapped[str | None] = mapped_column(String(64), nullable=True)
     git_branch: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    project_root: Mapped[str]
     output_dir: Mapped[str]
     created_at: Mapped[datetime]
     artifacts: Mapped[list["Artifact"]] = relationship(
@@ -57,7 +59,9 @@ class Artifact(Base):
     __tablename__ = "artifacts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    build_id: Mapped[int] = mapped_column(ForeignKey("builds.id"))
+    build_id: Mapped[int] = mapped_column(
+        ForeignKey("builds.id", ondelete="CASCADE")
+    )
     kind: Mapped[str] = mapped_column(String(32))
     path: Mapped[str]
     size_bytes: Mapped[int]
@@ -84,10 +88,21 @@ class DatabaseStatus:
 class Database:
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path) if path is not None else database_path()
-        self.url = f"sqlite+pysqlite:///{self.path}"
+        self.url = URL.create("sqlite+pysqlite", database=str(self.path))
+        self._engine: Engine | None = None
 
-    def engine(self):
-        return create_engine(self.url)
+    def engine(self) -> Engine:
+        if self._engine is None:
+            engine = create_engine(self.url)
+
+            @event.listens_for(engine, "connect")
+            def _sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
+            self._engine = engine
+        return self._engine
 
     @contextmanager
     def session(self) -> Iterator[Session]:
@@ -101,8 +116,9 @@ class Database:
         with resources.as_file(migration_root) as script_location:
             config = Config()
             config.set_main_option("script_location", str(script_location))
-            config.set_main_option("sqlalchemy.url", self.url)
-            command.upgrade(config, "head")
+            with self.engine().begin() as connection:
+                config.attributes["connection"] = connection
+                command.upgrade(config, "head")
 
     def install(self, *, package_version: str) -> DatabaseStatus:
         self.migrate()
@@ -137,8 +153,8 @@ class Database:
             build_count = session.scalar(select(func.count()).select_from(Build)) or 0
 
         return DatabaseStatus(
-            self.path,
-            revision,
-            int(installation_count),
-            int(build_count),
+            path=self.path,
+            revision=revision,
+            installation_count=int(installation_count),
+            build_count=int(build_count),
         )
