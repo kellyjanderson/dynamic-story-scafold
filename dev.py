@@ -1,23 +1,23 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
 DIST = ROOT / "dist"
+
+# Development commands operate directly from the checkout before the package
+# is necessarily installed.
+sys.path.insert(0, str(SRC))
+
+from dynamic_story_scaffold.builds import BuildManager  # noqa: E402
 
 
 def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True)
-
-
-def clean_dist() -> None:
-    if DIST.exists():
-        shutil.rmtree(DIST)
-    DIST.mkdir(parents=True, exist_ok=True)
 
 
 def test() -> None:
@@ -25,13 +25,19 @@ def test() -> None:
 
 
 def package() -> Path:
-    clean_dist()
-    run(sys.executable, "-m", "build", "--outdir", str(DIST), str(ROOT))
-
-    wheels = sorted(DIST.glob("*.whl"))
+    record = BuildManager().build(
+        project_root=ROOT,
+        output_dir=DIST,
+        clean=True,
+    )
+    wheels = [
+        artifact.path
+        for artifact in record.artifacts
+        if artifact.kind == "wheel"
+    ]
     if len(wheels) != 1:
         raise RuntimeError(
-            f"expected exactly one wheel in {DIST}, found {len(wheels)}"
+            f"expected exactly one wheel from build {record.id}, found {len(wheels)}"
         )
     return wheels[0]
 
@@ -51,7 +57,7 @@ def install() -> None:
 
 
 def build() -> None:
-    """Qualification build: run tests, then create wheel and sdist."""
+    """Qualification build: run tests, then create tracked wheel and sdist."""
     test()
     package()
 
