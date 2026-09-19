@@ -304,6 +304,17 @@ A reproducible timeline can be transferred or archived.
 
 Expose durable project/run workflow rather than individual low-level DB actions.
 
+### Depends on
+
+PW-01 through PW-06 plus the simulation/branch/render application services that
+are available at implementation time.
+
+### Shared code
+
+**USE** existing durable IDs, repository/application services, and Typer command
+groups. The CLI is an adapter; it must not own persistence transactions or
+simulation policy.
+
 ### Packages
 
 Typer.
