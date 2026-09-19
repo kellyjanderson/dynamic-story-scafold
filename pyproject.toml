@@ -35,13 +35,11 @@ package = [
   "dss builds record dist",
 ]
 build = [
-  "pytest -q",
-  "hatch build -c",
-  "dss builds record dist",
+  "test",
+  "package",
 ]
 install = [
-  "hatch build -c",
-  "dss builds record dist",
+  "package",
   "dss install",
 ]
 
