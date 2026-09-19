@@ -50,8 +50,6 @@ Installed command-line entry points are:
 dss install
 dss paths
 dss db status
-dss db migrate
-dss build
 dss builds list
 ```
 
@@ -75,11 +73,11 @@ dss paths
 
 For CI, portable installs, or managed deployments, set `DYNAMIC_STORY_SCAFFOLD_DATA_DIR` to override the application-data directory. Individual management commands can also use `--database PATH`.
 
-The installer is idempotent: it creates the database if absent, applies pending schema migrations, preserves existing data, and records the installation.
+The installer is idempotent: it creates the database if absent, uses SQLite's native `PRAGMA user_version` for schema versioning, preserves existing data, and records the installation.
 
-### Database-backed build management
+### Database-backed build history
 
-Builds are tracked in the same application database. A successful tracked build records:
+Packaging itself is delegated to the standard Python `build` package. After `python -m build` succeeds, the development script records the build in the application database:
 
 - package version
 - Git commit and branch when available
@@ -270,9 +268,20 @@ A later cinematic layer may choose not to render overt magic at all if the physi
 
 ## Development
 
+Install the development dependencies once:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-pytest
 ```
+
+Then use the same commands on macOS, Linux, and Windows:
+
+```bash
+python dev.py test
+python dev.py package
+python dev.py build
+python dev.py install
+```
+
