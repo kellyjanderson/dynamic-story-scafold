@@ -7,6 +7,7 @@ from .core.effects import Effect
 from .core.records import ActorUpdate
 from .core.refs import ComponentRef, EntityKind, EntityRef
 from .core.spatial import Position
+from .core.values import UNIT_INTERVAL
 from .schema import (
     ActorDefinition,
     ContinuousComponentDefinition,
@@ -48,10 +49,8 @@ class ActorState:
     values: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.health <= 1.0:
-            raise ValueError("actor health must be between 0 and 1")
-        if not 0.0 <= self.fatigue <= 1.0:
-            raise ValueError("actor fatigue must be between 0 and 1")
+        UNIT_INTERVAL.require(self.health, name="actor health")
+        UNIT_INTERVAL.require(self.fatigue, name="actor fatigue")
 
     @property
     def ref(self) -> EntityRef:
@@ -78,8 +77,8 @@ class ActorState:
                 f"actor update for {update.actor} cannot be applied to {self.ref}"
             )
 
-        self.health = _clamp_unit(self.health + update.health_delta)
-        self.fatigue = _clamp_unit(self.fatigue + update.fatigue_delta)
+        self.health = UNIT_INTERVAL.clamp(self.health + update.health_delta)
+        self.fatigue = UNIT_INTERVAL.clamp(self.fatigue + update.fatigue_delta)
 
         if update.destination is not None:
             self.position = update.destination
@@ -259,6 +258,3 @@ def _string_list(value: Any) -> list[str]:
         return [value]
     return [str(item) for item in value]
 
-
-def _clamp_unit(value: float) -> float:
-    return min(1.0, max(0.0, value))
