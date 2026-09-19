@@ -1346,9 +1346,9 @@ The PR qualification job should cover the minimum useful integration surface for
 # Implementation roadmap
 
 The architecture overview is intentionally separated from executable
-implementation plans. Esther or another orchestrator should assign work from
-the documents under `docs/implementation/`, not from the historical phase list
-that previously lived here.
+implementation plans. When an orchestrator is used, it should assign work from
+the documents under `docs/implementation/`; the same slices are also designed
+to be executed through chained implementation prompts.
 
 Implementation order:
 
