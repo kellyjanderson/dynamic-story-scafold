@@ -9,6 +9,7 @@ from .records import (
     ActorUpdate,
     ComponentChange,
     DisturbanceSet,
+    KnowledgeLevel,
     Observation,
     Outcome,
     RoundRecord,
@@ -17,7 +18,7 @@ from .records import (
     WorldForcing,
 )
 from .refs import ComponentRef, EntityKind, EntityRef, TargetRef
-from .scoring import ScoreBreakdown, ScoreTerm
+from .scoring import ScoreBreakdown, ScoredOption, ScoreTerm
 from .spatial import Position
 from .time import TimeSpan
 
@@ -35,12 +36,14 @@ __all__ = [
     "EntityRef",
     "Observation",
     "IntentProvider",
+    "KnowledgeLevel",
     "Outcome",
     "PerceptionProvider",
     "Position",
     "RandomStreams",
     "RoundRecord",
     "ScoreBreakdown",
+    "ScoredOption",
     "ScoreTerm",
     "TargetRef",
     "TimeSpan",
