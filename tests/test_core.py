@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -16,14 +17,17 @@ from dynamic_story_scaffold.core import (
     EntityKind,
     EntityRef,
     Outcome,
+    KnowledgeLevel,
     Position,
     RandomStreams,
     ScoreBreakdown,
+    ScoredOption,
     ScoreTerm,
     WorldEvent,
     TimeSpan,
     WorldForcing,
 )
+from dynamic_story_scaffold.schema import SimulationRules
 from dynamic_story_scaffold.state import ContinuousComponentState
 
 EXAMPLE = Path(__file__).parents[1] / "examples" / "hollow_bank.yaml"
@@ -198,3 +202,52 @@ def test_actor_runtime_state_normalizes_common_initial_fields() -> None:
     assert merrit.position == Position(zone="west_log")
     assert merrit.posture == "crouched"
     assert merrit.values["awareness"] == "alert"
+
+
+
+def test_scored_options_share_selection_contract() -> None:
+    low = ScoredOption(
+        value="hide",
+        score=ScoreBreakdown(terms=(ScoreTerm("utility", 0.2),)),
+    )
+    high = ScoredOption(
+        value="intercept",
+        score=ScoreBreakdown(terms=(ScoreTerm("utility", 0.9),)),
+    )
+    assert max((low, high), key=lambda option: option.total).value == "intercept"
+
+
+def test_observation_uses_shared_knowledge_level() -> None:
+    observer = EntityRef(EntityKind.ACTOR, "bubble_augur_pell")
+    subject = EntityRef(EntityKind.ACTOR, "blackjaw")
+    from dynamic_story_scaffold.core import Observation
+
+    observation = Observation(
+        observer=observer,
+        subject=subject,
+        fact="turning toward the spillway",
+        confidence=0.7,
+        certainty=KnowledgeLevel.INFERRED,
+    )
+
+    assert observation.certainty is KnowledgeLevel.INFERRED
+
+
+def test_generated_run_seed_can_be_replayed() -> None:
+    scene = load_scene(EXAMPLE)
+    unseeded_scene = replace(
+        scene,
+        simulation=SimulationRules(
+            tick_seconds=scene.simulation.tick_seconds,
+            seed=None,
+        ),
+    )
+
+    first = Simulation(unseeded_scene)
+    replay = Simulation(unseeded_scene, seed=first.seed)
+
+    for _ in range(4):
+        first.tick()
+        replay.tick()
+
+    assert first.state.snapshot()["environment"] == replay.state.snapshot()["environment"]
