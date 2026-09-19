@@ -46,6 +46,14 @@ Examples:
 This deliberately prevents random-number consumption in one subsystem from
 changing another subsystem's results.
 
+### `core.values`
+
+- `NumericRange`
+- `UNIT_INTERVAL`
+
+Environment bounds, probabilities, confidence, risk tolerance, health, and
+fatigue share the same range/clamping semantics.
+
 ### `core.spatial`
 
 - `Position`
