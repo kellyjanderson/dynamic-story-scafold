@@ -43,6 +43,9 @@ class Simulation:
         effective_seed = scene.simulation.seed if seed is None else seed
         self.seed = randbits(64) if effective_seed is None else int(effective_seed)
         self.random = RandomStreams(self.seed)
+        # Backward-compatible stream for callers that used Simulation.rng.
+        # Environment evolution never consumes this stream.
+        self.rng = self.random.stream("legacy")
 
     def tick(
         self,
