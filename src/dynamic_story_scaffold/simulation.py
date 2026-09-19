@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from secrets import randbits
 from typing import Iterable, Mapping
 
 from .core.randomness import RandomStreams
@@ -40,7 +41,7 @@ class Simulation:
         self.scene = scene
         self.state = state if state is not None else WorldState.from_scene(scene)
         effective_seed = scene.simulation.seed if seed is None else seed
-        self.seed = 0 if effective_seed is None else int(effective_seed)
+        self.seed = randbits(64) if effective_seed is None else int(effective_seed)
         self.random = RandomStreams(self.seed)
 
     def tick(
