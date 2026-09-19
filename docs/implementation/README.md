@@ -15,6 +15,7 @@ bounded implementation work.
 6. `06_RENDER_PIPELINE.md`
 7. `07_PERSISTENCE_WORKFLOW.md`
 8. `08_EVALUATION_EXPLORATION.md`
+9. `09_EXTERNAL_DECISION_PROVIDERS.md`
 
 Later documents may be implemented partially or reordered when their declared
 dependencies permit it. Do not pull later policy into the MVP merely because it
@@ -137,8 +138,9 @@ for concurrency, replay, graph resolution, mutation boundaries, persistence,
 and other areas where coding agents tend to drift.
 
 ### Expected files
-Likely files to create/modify. Agents may adjust filenames when repository
-structure makes that clearly better, but should preserve the stated boundaries.
+Likely files to create/modify when the slice benefits from naming them. Agents
+may adjust filenames when repository structure makes that clearly better, but
+should preserve the stated boundaries.
 
 ### Tests
 Behavior and invariants that must be proved.
@@ -147,7 +149,11 @@ Behavior and invariants that must be proved.
 A short objective stop condition.
 
 ### Do not
-Explicit scope exclusions.
+Use when a slice has an important scope trap. It may be omitted when the
+document-level boundaries already make the exclusion unambiguous.
+
+The mandatory fields for every dispatched slice are **Goal, Depends on, Shared
+code, Packages, Method, Tests, and Completion**.
 
 ## Standard handoff from every slice
 
