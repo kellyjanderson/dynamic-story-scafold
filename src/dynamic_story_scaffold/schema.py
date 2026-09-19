@@ -14,7 +14,13 @@ class SceneDefinitionError(ValueError):
     """Raised when a scene definition is structurally invalid."""
 
 
-Bounds = NumericRange
+@dataclass(frozen=True, slots=True)
+class Bounds(NumericRange):
+    def __post_init__(self) -> None:
+        try:
+            super(Bounds, self).__post_init__()
+        except ValueError as exc:
+            raise SceneDefinitionError(str(exc)) from exc
 
 
 @dataclass(frozen=True)
