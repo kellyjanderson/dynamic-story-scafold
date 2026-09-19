@@ -101,6 +101,24 @@ Every stochastic decision must use `RandomStreams` with a semantic key. Same
 state + same proposals + same seed/branch entropy must replay the same sampled
 outcome regardless of coroutine completion order or container iteration order.
 
+### Visual-frequency terminology
+
+When discussing rendering quality, do not use "noise" as shorthand for all fine
+detail.
+
+Distinguish:
+
+- **random image noise/artifacts** — unwanted stochastic or generation error
+- **high-spatial-frequency signal** — legitimate fine structure such as fur,
+  droplets, bark, foliage edges, ripples, and reflections
+- **perceptual interference** — too much competing high-frequency signal spread
+  across the frame, weakening focal hierarchy and reading as visual noise to a
+  human observer
+
+Art-direction work should manage the **distribution and concentration of
+high-spatial-frequency signal**, preserving it where it supports the focal
+subject/action and reducing competing fine detail elsewhere.
+
 ### Branch-capable history from the beginning
 
 Even before full multiverse tooling exists, persisted simulation history must
