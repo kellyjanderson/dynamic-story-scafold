@@ -395,6 +395,12 @@ Assertions:
 - shuffled proposal/provider completion order matches
 - different seeds may legitimately select different valid outcomes
 
+### Tests
+
+The generated pathological scenarios are themselves the test suite. Retain
+minimal failing examples produced by Hypothesis as focused regression fixtures
+when they expose a real engine bug.
+
 ### Completion
 
 The interaction engine has property-level evidence against deadlock/livelock and
