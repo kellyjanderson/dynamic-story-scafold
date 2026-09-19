@@ -8,13 +8,17 @@ from typing import Sequence
 
 from .builds import BuildManager
 from .database import Database
-from .paths import database_path
+from .platform import current_platform
 from .version import package_version
 
 
 def _status_payload(database: Database) -> dict[str, object]:
     status = database.status()
+    platform_info = current_platform()
     return {
+        "os_name": platform_info.os_name,
+        "sys_platform": platform_info.sys_platform,
+        "data_directory": str(platform_info.data_directory),
         "database_path": str(status.path),
         "schema_version": status.schema_version,
         "installation_count": status.installation_count,
@@ -97,9 +101,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "paths":
+        platform_info = current_platform()
         payload = {
+            "os_name": platform_info.os_name,
+            "sys_platform": platform_info.sys_platform,
+            "data_directory": str(platform_info.data_directory),
             "database_path": str(
-                args.database if args.database else database_path()
+                args.database if args.database else platform_info.database
             ),
         }
         _print_payload(payload, as_json=args.json)
