@@ -16,6 +16,7 @@ from dynamic_story_scaffold.core import (
     EffectStacking,
     EntityKind,
     EntityRef,
+    NumericRange,
     Outcome,
     KnowledgeLevel,
     Position,
@@ -269,3 +270,22 @@ def test_unknown_world_forcing_is_rejected() -> None:
                 ),
             )
         )
+
+
+
+def test_numeric_range_is_shared_for_validation_and_clamping() -> None:
+    bounds = NumericRange(-2.0, 2.0)
+    assert bounds.contains(0.5)
+    assert bounds.clamp(5.0) == 2.0
+    assert bounds.clamp(-5.0) == -2.0
+
+    with pytest.raises(ValueError, match="outside"):
+        bounds.require(3.0, name="test value")
+
+
+def test_world_actor_lookup_rejects_non_actor_reference() -> None:
+    scene = load_scene(EXAMPLE)
+    state = Simulation(scene).state
+
+    with pytest.raises(KeyError):
+        state.actor(EntityRef(EntityKind.OBJECT, "blackjaw"))
