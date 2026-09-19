@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from random import Random
-from typing import Protocol, Sequence
+from typing import TYPE_CHECKING, Protocol, Sequence
 
 from .records import ActionIntent, ActionResolution, Observation
 from .refs import EntityRef
+
+if TYPE_CHECKING:
+    from dynamic_story_scaffold.state import WorldState
 
 
 class PerceptionProvider(Protocol):
@@ -12,7 +15,7 @@ class PerceptionProvider(Protocol):
         self,
         *,
         actor: EntityRef,
-        world: object,
+        world: "WorldState",
         rng: Random,
     ) -> tuple[Observation, ...]: ...
 
@@ -22,7 +25,7 @@ class IntentProvider(Protocol):
         self,
         *,
         actor: EntityRef,
-        world: object,
+        world: "WorldState",
         observations: Sequence[Observation],
         rng: Random,
     ) -> ActionIntent: ...
@@ -33,6 +36,6 @@ class ActionResolver(Protocol):
         self,
         *,
         intent: ActionIntent,
-        world: object,
+        world: "WorldState",
         rng: Random,
     ) -> ActionResolution: ...
