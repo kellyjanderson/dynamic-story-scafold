@@ -116,7 +116,7 @@ class Database:
         with resources.as_file(migration_root) as script_location:
             config = Config()
             config.set_main_option("script_location", str(script_location))
-            with self.engine().begin() as connection:
+            with self.engine().connect() as connection:
                 config.attributes["connection"] = connection
                 command.upgrade(config, "head")
 
