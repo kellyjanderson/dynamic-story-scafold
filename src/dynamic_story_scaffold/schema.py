@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Sequence
 
+from .core.refs import ComponentRef
+
 Scalar = int | float | str | bool
 ComponentKind = Literal["continuous", "discrete"]
 
@@ -225,6 +227,28 @@ class SceneDefinition:
             if actor.id == actor_id:
                 return actor
         raise KeyError(actor_id)
+
+    @property
+    def component_refs(self) -> tuple[ComponentRef, ...]:
+        return tuple(
+            ComponentRef(element_name, component_name)
+            for element_name, element in self.environment.items()
+            for component_name in element.components
+        )
+
+    def component_definition(
+        self,
+        reference: str | ComponentRef,
+    ) -> DynamicComponentDefinition:
+        component = (
+            reference
+            if isinstance(reference, ComponentRef)
+            else ComponentRef.parse(reference)
+        )
+        try:
+            return self.environment[component.element].components[component.component]
+        except KeyError as exc:
+            raise KeyError(component.path) from exc
 
 
 def tuple_of_strings(value: Sequence[Any] | None) -> tuple[str, ...]:
