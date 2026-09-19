@@ -57,6 +57,8 @@ class Simulation:
         )
         applied = (disturbances or DisturbanceSet()).merged(legacy)
         forcing_by_component = applied.forcing_by_component()
+        for reference in forcing_by_component:
+            self.scene.component_definition(reference)
         event_names = applied.event_names
         changes: list[ComponentChange] = []
 
