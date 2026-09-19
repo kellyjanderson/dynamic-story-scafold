@@ -251,3 +251,21 @@ def test_generated_run_seed_can_be_replayed() -> None:
         replay.tick()
 
     assert first.state.snapshot()["environment"] == replay.state.snapshot()["environment"]
+
+
+
+def test_unknown_world_forcing_is_rejected() -> None:
+    scene = load_scene(EXAMPLE)
+    sim = Simulation(scene, seed=3)
+
+    with pytest.raises(KeyError, match="weather.not_a_component"):
+        sim.tick(
+            disturbances=DisturbanceSet(
+                forcing=(
+                    WorldForcing(
+                        ComponentRef("weather", "not_a_component"),
+                        1.0,
+                    ),
+                ),
+            )
+        )
