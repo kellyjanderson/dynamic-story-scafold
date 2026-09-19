@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=75", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
 
 [project]
 name = "dynamic-story-scaffold"
@@ -9,30 +9,40 @@ description = "Bounded stochastic scene simulation for dynamic story generation.
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "platformdirs>=4.3.6",
-  "PyYAML>=6.0.2",
-]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.12",
-  "Operating System :: MacOS",
-  "Operating System :: Microsoft :: Windows",
-  "Operating System :: POSIX",
+  "alembic>=1.20",
+  "platformdirs>=4.3",
+  "PyYAML>=6.0",
+  "SQLAlchemy>=2.0",
+  "typer>=0.19",
 ]
 
 [project.scripts]
-dss = "dynamic_story_scaffold.cli:main"
-dss-install = "dynamic_story_scaffold.cli:installer_main"
+dss = "dynamic_story_scaffold.cli:app"
 
-[project.optional-dependencies]
-dev = [
-  "build>=1.2.2",
+[tool.hatch.build.targets.wheel]
+packages = ["src/dynamic_story_scaffold"]
+
+[tool.hatch.envs.default]
+dependencies = [
   "pytest>=8.3",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.envs.default.scripts]
+test = "pytest -q"
+build = [
+  "hatch build -c",
+  "dss builds record dist",
+]
+install = [
+  "hatch build -c",
+  "dss builds record dist",
+  "dss install",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.alembic]
+script_location = "src/dynamic_story_scaffold/migrations"
+prepend_sys_path = ["."]
