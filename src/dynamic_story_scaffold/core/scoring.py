@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import Generic, Mapping, TypeVar
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,3 +39,13 @@ class ScoreBreakdown:
             for term in self.terms
             if term.name == name
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ScoredOption(Generic[T]):
+    value: T
+    score: ScoreBreakdown
+
+    @property
+    def total(self) -> float:
+        return self.score.total
