@@ -15,6 +15,7 @@ class KnowledgeLevel(StrEnum):
     KNOWN = "known"
     INFERRED = "inferred"
     SUSPECTED = "suspected"
+    UNKNOWN = "unknown"
 
 
 class Outcome(StrEnum):
