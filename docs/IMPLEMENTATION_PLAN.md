@@ -175,7 +175,7 @@ Instead:
 - every phase reads a stable snapshot
 - actors/systems emit proposals rather than mutating shared state
 - dependencies and contested resources are declared explicitly
-- conflicts are arbitrated deterministically
+- conflicts are arbitrated by explicit rules that may include seeded randomness
 - resolved changes are committed at a phase boundary
 - a phase never recursively re-enters itself or an earlier phase
 
@@ -280,7 +280,8 @@ Every mutable phase follows the same transaction shape:
 3. **Declare dependencies** — proposals expose targets, claims, read/write sets,
    reaction relationships, and timing.
 4. **Arbitrate** — the coordinator resolves conflicts and cycles without
-   mutating canonical state.
+   mutating canonical state. Arbitration may be stochastic, but must use
+   semantic seeded random streams so replay is reproducible.
 5. **Commit** — accepted changes are applied exactly once.
 6. **Record** — immutable history captures inputs, arbitration, outcomes, and
    committed changes.
@@ -296,7 +297,7 @@ The coordinator should:
 1. topologically resolve acyclic portions
 2. detect strongly connected components
 3. never "wait" for a strongly connected component to resolve itself
-4. send each cyclic component to a deterministic simultaneous-conflict policy
+4. send each cyclic component to an explicit simultaneous-conflict policy
 
 A cyclic group may be resolved by:
 
@@ -304,10 +305,13 @@ A cyclic group may be resolved by:
 - initiative/timing comparison
 - mutually compatible merge
 - explicit cancellation
-- deterministic tie-break
+- seeded stochastic choice
+- weighted random arbitration
+- deterministic tie-break where randomness is not desired
 - deferral to the next decision window
 
-The chosen rule must be recorded in the round history.
+The chosen rule, random stream identity, and sampled value must be recorded in
+the round history whenever stochastic arbitration is used.
 
 Cycles are therefore **data to resolve**, not execution waits.
 
@@ -346,7 +350,8 @@ Examples:
 - two incompatible destinations for one actor
 - mutually exclusive posture/state changes
 
-These require arbitration.
+These require arbitration. Arbitration may be deterministic or stochastic
+depending on the domain rule.
 
 ### Rule-governed writes
 
@@ -400,7 +405,8 @@ Rules:
 - a primary intent may open one or more defined reaction windows
 - eligible reactors propose reactions from the same stable snapshot plus the
   triggering intent/event
-- reactions have deterministic timing/priority
+- reactions have explicit timing/priority; equal or overlapping cases may use
+  seeded stochastic arbitration
 - reactions may alter/cancel/redirect proposals
 - a reaction may not recursively invoke the coordinator
 - reaction-to-reaction chains consume a finite causal budget
@@ -421,8 +427,8 @@ The coordinator must guarantee that:
   deferred, failed, or overflowed
 - no proposal remains "waiting"
 - deferred proposals carry a bounded deferral count
-- deterministic fairness rules prevent permanent starvation where fairness is
-  semantically appropriate
+- fairness rules prevent permanent starvation where fairness is semantically
+  appropriate; those rules may include weighted seeded randomness
 
 A round may legitimately produce no physical change, but its scheduler must
 always terminate.
@@ -462,11 +468,18 @@ Rules:
 If multi-process execution is introduced later, coordination should use an
 established queue/database mechanism rather than ad-hoc SQLite locking.
 
-## Deterministic ordering
+## Stable execution order and stochastic replay
 
-Any place where order affects semantics must define a stable order.
+Execution order must be stable, but **outcomes do not need to be deterministic**.
 
-Never rely on:
+A contradiction, tie, opposed action, resource claim, or cyclic dependency may
+be resolved with randomness when that produces better simulation behavior.
+
+The requirement is:
+
+> Same initial state + same proposals + same run seed = same sampled outcome.
+
+Never derive semantic outcomes from accidental execution order such as:
 
 - dict iteration
 - set iteration
@@ -474,8 +487,23 @@ Never rely on:
 - coroutine completion order
 - wall-clock timing
 
-Tie-breaking inputs should derive from semantic identifiers and the run seed so
-replay produces the same result.
+When randomness is part of arbitration, use a semantic random stream keyed from
+the run seed and the conflict identity, for example:
+
+`arbitration / round / conflict-id`
+
+The round record should retain enough information to explain and replay the
+choice:
+
+- arbitration rule
+- candidate set
+- weights/modifiers
+- random stream key
+- sampled value
+- selected outcome
+
+This allows genuinely stochastic simulation while preserving replayability and
+debuggability.
 
 ## Failure isolation
 
@@ -843,6 +871,8 @@ The coordinator must define deterministic policies for:
 - opposed actions
 - equal initiative/timing
 - reactions that target other reactions
+- which of these cases use deterministic rules versus seeded stochastic
+  arbitration
 
 Every proposal reaches a terminal scheduler status.
 
@@ -863,7 +893,8 @@ it never loops until a timeout.
 ### Acceptance criteria
 
 - defensive interception works without recursive coordinator calls
-- circular action dependencies terminate deterministically
+- circular action dependencies terminate under an explicit bounded policy;
+  that policy may be stochastic
 - reaction chains cannot exceed their configured depth
 - actions may alter later actions in the same interval through declared
   dependency/reaction rules
@@ -871,6 +902,7 @@ it never loops until a timeout.
 - aggregate forcing evolves a dynamic component only once per tick
 - provider completion order does not affect results
 - every round terminates with no waiting proposals
+- stochastic arbitration is allowed and recorded
 - fixed seed + initial state + provider outputs reproduce the same round
 - a resolved round produces one coherent next state and one immutable audit
   record
