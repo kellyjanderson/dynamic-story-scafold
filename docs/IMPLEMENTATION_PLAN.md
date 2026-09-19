@@ -195,7 +195,7 @@ rather than creating local equivalents.
 Shared primitives currently include:
 
 - stable actor/entity/component/target references
-- semantic deterministic random streams
+- replayable semantic random streams
 - semantic-zone and coordinate-capable positions
 - time spans
 - effects and stacking semantics
@@ -218,7 +218,7 @@ Important boundary:
 > actor/environment state transition rules.
 
 Randomness is similarly isolated by semantic namespace. Consuming decision or
-perception randomness cannot change environment evolution for the same run seed.
+perception randomness cannot change environment evolution for the same run/branch entropy context.
 
 See `docs/CORE_LIBRARY.md` for the contracts and invariants.
 
@@ -581,7 +581,7 @@ be resolved with randomness when that produces better simulation behavior.
 
 The requirement is:
 
-> Same initial state + same proposals + same run seed = same sampled outcome.
+> Same initial state + same proposals + same run/branch entropy context = same sampled outcome.
 
 Never derive semantic outcomes from accidental execution order such as:
 
