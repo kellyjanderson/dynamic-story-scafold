@@ -185,7 +185,12 @@ class WorldState:
         return self.environment[component.element].components[component.component]
 
     def actor(self, reference: str | EntityRef) -> ActorState:
-        actor_id = reference.id if isinstance(reference, EntityRef) else reference
+        if isinstance(reference, EntityRef):
+            if reference.kind is not EntityKind.ACTOR:
+                raise KeyError(str(reference))
+            actor_id = reference.id
+        else:
+            actor_id = reference
         return self.actors[actor_id]
 
     def apply_actor_update(self, update: ActorUpdate) -> None:
