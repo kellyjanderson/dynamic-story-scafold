@@ -3,12 +3,12 @@ from __future__ import annotations
 import hashlib
 import subprocess
 import sys
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
 from .database import Database, utc_now
-from .version import package_version
 
 
 @dataclass(frozen=True)
@@ -55,6 +55,16 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _project_version(project_root: Path) -> str:
+    pyproject = project_root / "pyproject.toml"
+    try:
+        with pyproject.open("rb") as handle:
+            raw = tomllib.load(handle)
+        return str(raw["project"]["version"])
+    except (OSError, KeyError, TypeError, tomllib.TOMLDecodeError):
+        return "0+unknown"
+
+
 def _artifact_kind(path: Path) -> str:
     lower = path.name.lower()
     if lower.endswith(".whl"):
@@ -87,7 +97,7 @@ class BuildManager:
             self._clean_artifacts(out)
         out.mkdir(parents=True, exist_ok=True)
 
-        version = package_version()
+        version = _project_version(root)
         git_commit = _git_value(root, "rev-parse", "HEAD")
         git_branch = _git_value(root, "branch", "--show-current")
         build_id = self._start_build(
