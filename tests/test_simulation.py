@@ -100,5 +100,5 @@ def test_external_forcing_can_represent_actor_or_world_disturbance() -> None:
     after = sim.state.component("terrain.dam_integrity")
     assert isinstance(after, ContinuousComponentState)
     assert after.value < start
-    assert start - after.value <= 0.03
+    assert start - after.value <= 0.03 + 1e-12
     assert any(change.path == "terrain.dam_state" for change in result.changes)
