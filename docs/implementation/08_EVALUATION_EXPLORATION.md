@@ -57,7 +57,7 @@ Initial categories:
 - simulation inconsistency
 - action engagement
 - continuity
-- visual clutter
+- high-spatial-frequency interference / competing detail
 - focal hierarchy
 - magic causality
 - anatomy
@@ -253,7 +253,96 @@ Users can inspect how sensitive a scenario is to stochastic choices.
 
 ---
 
-## Slice EV-06 — Feedback-assisted comparison reports
+## Slice EV-06 — Spatial-frequency distribution analysis
+
+### Goal
+
+Measure whether rendered fine detail is concentrated where it supports focal
+hierarchy or spread across the frame strongly enough to create perceptual
+interference.
+
+This is **not** a generic image-noise detector.
+
+### Depends on
+
+rendered assets, style profiles, and asset provenance.
+
+### Shared code
+
+**USE** render asset references, style-profile frequency/detail settings, and
+selected-moment/camera metadata where available.
+
+Keep measured image-analysis data in the evaluation subsystem. Do not feed it
+directly into canonical simulation state.
+
+### Packages
+
+Add only for this slice:
+
+- **numpy** for FFT/frequency-band energy calculations
+- **Pillow** for image loading/normalization
+- **scikit-image** for established edge/gradient measurements such as Sobel
+  response rather than implementing image filters manually
+
+### Method
+
+Analyze rendered images at several complementary levels:
+
+1. **Spatial-frequency energy**
+   - convert to a defined luminance representation
+   - compute 2D FFT magnitude
+   - summarize energy in low/mid/high radial frequency bands
+   - normalize for image dimensions so comparisons across output sizes remain
+     meaningful
+
+2. **Local edge/detail density**
+   - compute an established gradient/edge response
+   - summarize by tiles/regions rather than only one global number
+   - report concentration versus uniform distribution of fine detail
+
+3. **Microcontrast distribution**
+   - measure local luminance variance/gradient energy at small scales
+   - distinguish a focal cluster of high-frequency detail from frame-wide high
+     microcontrast
+
+4. **Focal-versus-secondary comparison**
+   - when the render request or later detection tooling provides focal
+     regions/masks, compare high-frequency energy inside versus outside those
+     regions
+   - otherwise report tiled/global distributions without inventing focal masks
+
+The output should be descriptive metrics, not a binary "noisy/clean" verdict.
+
+A technically clean image with meaningful fur, droplets, foliage, bark, and
+reflections may still be perceptually noisy when those high-frequency signals
+compete uniformly across the frame.
+
+Store analyzer/version/parameters with results so measurements remain
+comparable.
+
+### Tests
+
+Use synthetic fixtures with controlled frequency content:
+
+- broad smooth shapes with low high-frequency energy
+- fine checker/detail concentrated in one focal region
+- the same fine detail spread uniformly across the frame
+- identical signal plus random pixel noise to demonstrate that random noise and
+  structured high-frequency signal are distinguishable cases
+- resized versions produce comparable normalized band summaries within
+  tolerance
+
+Assert that the analyzer reports distributions/metrics and does not assign an
+aesthetic pass/fail judgment.
+
+### Completion
+
+Evaluation can quantify the specific high-spatial-frequency competition problem
+observed during prototyping without conflating it with random image noise.
+
+---
+
+## Slice EV-07 — Feedback-assisted comparison reports
 
 ### Goal
 
@@ -261,7 +350,7 @@ Combine branch/render differences with human feedback for review.
 
 ### Depends on
 
-EV-01/EV-05 and cinematic/render pipeline.
+EV-01, EV-05, EV-06, and cinematic/render pipeline.
 
 ### Shared code
 
@@ -281,6 +370,7 @@ Generate structured report data:
 - selected moment differences
 - render assets
 - feedback grouped by category
+- spatial-frequency/detail-distribution metrics where available
 
 Do not automatically train/change weights in this slice.
 
