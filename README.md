@@ -30,65 +30,70 @@ The next layer should add perception, intent selection, action resolution, actor
 
 ## Build, package, and install
 
-The repository has one cross-platform development command surface:
+Project tooling is delegated to established packages rather than implemented in DSS:
+
+- **Hatch/Hatchling**: development environments, task scripts, wheel/sdist packaging.
+- **pytest**: tests.
+- **Typer**: command-line interface.
+- **SQLAlchemy**: database persistence.
+- **Alembic**: schema migrations.
+- **platformdirs**: operating-system application-data locations.
+- **GitPython**: Git metadata for build records.
+
+Install Hatch once with your preferred tool manager, for example `pipx install hatch`, then use:
 
 ```bash
-python dev.py test
-python dev.py package
-python dev.py build
-python dev.py install
+hatch run test
+hatch run package
+hatch run build
+hatch run install
 ```
 
-- `test` runs the test suite.
-- `package` creates a wheel and source distribution and records the build plus artifact hashes in SQLite.
-- `build` runs tests, then performs the tracked package build.
-- `install` packages the current checkout, installs the freshly built wheel into the current Python environment, then executes the application installer.
+- `test`: run the test suite.
+- `package`: build wheel + source distribution with Hatch and record their metadata in SQLite.
+- `build`: run tests, package, and record the successful artifacts.
+- `install`: package, record the artifacts, then run the DSS installer to create or migrate application state.
 
-Installed command-line entry points are:
+The installed application CLI exposes:
 
 ```bash
 dss install
 dss paths
 dss db status
+dss builds record dist
 dss builds list
 ```
 
-`dss-install` is also provided as a dedicated installer entry point.
-
 ### Platform-aware application data
 
-The SQLite database is application state, not package data, so it is never written into the Python package directory.
-
-By default, the installer uses the normal per-user data location for the host operating system:
+The SQLite database is application state, never package data. `platformdirs` selects the normal per-user location:
 
 - **macOS:** `~/Library/Application Support/dynamic-story-scaffold/story-scaffold.sqlite3`
 - **Linux / other XDG Unix:** `$XDG_DATA_HOME/dynamic-story-scaffold/story-scaffold.sqlite3`, normally `~/.local/share/dynamic-story-scaffold/story-scaffold.sqlite3`
-- **Windows:** the user's local application-data directory, under `dynamic-story-scaffold\story-scaffold.sqlite3`
+- **Windows:** the user's local application-data directory under `dynamic-story-scaffold\story-scaffold.sqlite3`
 
-The exact path can always be inspected with:
+Inspect the actual resolved path with:
 
 ```bash
 dss paths
 ```
 
-For CI, portable installs, or managed deployments, set `DYNAMIC_STORY_SCAFFOLD_DATA_DIR` to override the application-data directory. Individual management commands can also use `--database PATH`.
+For CI, portable installs, or managed deployments, `DYNAMIC_STORY_SCAFFOLD_DATA_DIR` overrides the application-data directory.
 
-The installer is idempotent: it creates the database if absent, uses SQLite's native `PRAGMA user_version` for schema versioning, preserves existing data, and records the installation.
+The installer runs Alembic migrations to the latest revision and records the installed package version and platform.
 
 ### Database-backed build history
 
-Packaging itself is delegated to the standard Python `build` package. After `python -m build` succeeds, the development script records the build in the application database:
+Hatch performs the actual build. DSS records only project-specific metadata after a successful package build:
 
 - package version
-- Git commit and branch when available
+- Git commit and branch
 - project root and output directory
-- build status and timestamps
 - wheel/sdist artifact type
-- artifact path
-- byte size
+- artifact path and size
 - SHA-256 digest
 
-`dss builds list` shows recent build records.
+`dss builds list` queries that history.
 
 ## Scene YAML
 
@@ -268,20 +273,10 @@ A later cinematic layer may choose not to render overt magic at all if the physi
 
 ## Development
 
-Install the development dependencies once:
+Hatch owns the development environment. After installing Hatch, no project-specific development bootstrap script is required.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
+hatch run test
+hatch run build
+hatch run install
 ```
-
-Then use the same commands on macOS, Linux, and Windows:
-
-```bash
-python dev.py test
-python dev.py package
-python dev.py build
-python dev.py install
-```
-
