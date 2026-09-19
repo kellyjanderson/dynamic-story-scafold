@@ -274,6 +274,12 @@ Expose practical multiverse operations.
 
 BR-01 through BR-05.
 
+### Shared code
+
+**USE** branch/run/checkpoint identifiers, branch services, comparison records,
+and existing application-service boundaries. The CLI must not implement branch
+semantics itself.
+
 ### Packages
 
 Typer.
