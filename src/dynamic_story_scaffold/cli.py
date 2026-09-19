@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -159,10 +160,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def installer_main(argv: Sequence[str] | None = None) -> int:
-    args = ["install"]
-    if argv:
-        args.extend(argv)
-    return main(args)
+    forwarded = list(sys.argv[1:] if argv is None else argv)
+    return main(["install", *forwarded])
 
 
 def _print_payload(payload: object, *, as_json: bool) -> None:
