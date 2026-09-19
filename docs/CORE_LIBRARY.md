@@ -33,7 +33,7 @@ interval representation.
 
 - `RandomStreams`
 
-The current implementation derives semantic substreams from a run seed. The
+The current implementation derives replayable semantic substreams from a run seed. The
 planned run/branch context extends this by incorporating branch entropy after a
 timeline fork while preserving the same semantic-key model.
 
