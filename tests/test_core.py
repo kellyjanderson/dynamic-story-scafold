@@ -1,0 +1,155 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from dynamic_story_scaffold import Simulation, load_scene
+from dynamic_story_scaffold.core import (
+    ActionIntent,
+    ActionResolution,
+    ComponentRef,
+    DisturbanceSet,
+    Effect,
+    EffectStacking,
+    EntityKind,
+    EntityRef,
+    Outcome,
+    Position,
+    RandomStreams,
+    ScoreBreakdown,
+    ScoreTerm,
+    WorldEvent,
+    WorldForcing,
+)
+from dynamic_story_scaffold.state import ContinuousComponentState
+
+EXAMPLE = Path(__file__).parents[1] / "examples" / "hollow_bank.yaml"
+
+
+def test_component_reference_round_trips() -> None:
+    reference = ComponentRef.parse("weather.wind_speed")
+    assert reference.element == "weather"
+    assert reference.component == "wind_speed"
+    assert reference.path == "weather.wind_speed"
+
+    with pytest.raises(ValueError):
+        ComponentRef.parse("weather")
+
+
+def test_random_streams_are_semantically_independent() -> None:
+    streams = RandomStreams(8128)
+    expected = streams.stream("environment", 1, "weather.wind_speed").random()
+
+    # Consuming unrelated streams must not perturb this stream.
+    streams.stream("decision", 1, "reedshadow_merrit").random()
+    streams.stream("perception", 1, "blackjaw").random()
+
+    actual = streams.stream("environment", 1, "weather.wind_speed").random()
+    assert actual == expected
+
+
+def test_score_breakdown_is_inspectable() -> None:
+    score = ScoreBreakdown(
+        terms=(
+            ScoreTerm("objective", 0.8, 2.0),
+            ScoreTerm("risk", -0.4, 0.5),
+        ),
+        jitter=0.03,
+    )
+
+    assert score.contribution("objective") == 1.6
+    assert score.deterministic_total == pytest.approx(1.4)
+    assert score.total == pytest.approx(1.43)
+
+
+def test_position_supports_semantic_and_coordinate_modes() -> None:
+    assert Position(zone="west_log").distance_to(Position(zone="east_bank")) is None
+    assert Position(x=0, y=0).distance_to(Position(x=3, y=4)) == 5.0
+
+
+def test_disturbances_merge_and_aggregate_forcing() -> None:
+    component = ComponentRef.parse("terrain.dam_integrity")
+    shellbreaker = EntityRef(EntityKind.ACTOR, "shellbreaker_orr")
+    blackjaw = EntityRef(EntityKind.ACTOR, "blackjaw")
+
+    first = DisturbanceSet(
+        forcing=(WorldForcing(component, -0.2, shellbreaker, "hammer impact"),),
+        events=(WorldEvent("dam_stressed", source=blackjaw),),
+    )
+    second = DisturbanceSet(
+        forcing=(WorldForcing(component, -0.15, blackjaw, "body impact"),),
+    )
+
+    merged = first.merged(second)
+    assert merged.forcing_by_component()[component] == pytest.approx(-0.35)
+    assert merged.event_names == frozenset({"dam_stressed"})
+
+
+def test_effect_and_action_records_share_common_targeting() -> None:
+    actor = EntityRef(EntityKind.ACTOR, "currentcaller_nix")
+    target = EntityRef(EntityKind.ACTOR, "blackjaw")
+    effect = Effect(
+        id="crosscurrent-1",
+        kind="stability",
+        source=actor,
+        target=target,
+        magnitude=-0.15,
+        duration_seconds=2.0,
+        stacking=EffectStacking.STRONGEST,
+    )
+    intent = ActionIntent(
+        actor=actor,
+        action="crosscurrent",
+        target=target,
+        ability="Crosscurrent",
+    )
+    resolution = ActionResolution(
+        intent=intent,
+        outcome=Outcome.SUCCESS,
+        disturbances=DisturbanceSet(effects=(effect,)),
+        started_at=0.3,
+        ended_at=1.2,
+    )
+
+    assert resolution.disturbances.effects[0].target == target
+
+
+def test_simulation_accepts_shared_disturbances() -> None:
+    scene = load_scene(EXAMPLE)
+    sim = Simulation(scene, seed=4)
+    reference = ComponentRef.parse("terrain.dam_integrity")
+    start_state = sim.state.component(reference)
+    assert isinstance(start_state, ContinuousComponentState)
+    start = start_state.value
+
+    result = sim.tick(
+        disturbances=DisturbanceSet(
+            forcing=(
+                WorldForcing(reference, -0.25),
+                WorldForcing(reference, -0.25),
+            ),
+            events=(WorldEvent("dam_stressed"),),
+        )
+    )
+
+    after = sim.state.component(reference)
+    assert isinstance(after, ContinuousComponentState)
+    assert after.value < start
+    assert start - after.value <= 0.03 + 1e-12
+    assert result.events == ("dam_stressed",)
+    assert any(change.component == reference for change in result.changes)
+
+
+def test_unrelated_random_consumption_does_not_change_environment() -> None:
+    scene = load_scene(EXAMPLE)
+    baseline = Simulation(scene, seed=91)
+    noisy = Simulation(scene, seed=91)
+
+    for tick in range(5):
+        noisy.random.stream("decision", tick, "reedshadow_merrit").random()
+        noisy.random.stream("perception", tick, "blackjaw").gauss(0, 1)
+        baseline.tick()
+        noisy.tick()
+
+    assert baseline.state.snapshot()["environment"] == noisy.state.snapshot()["environment"]
