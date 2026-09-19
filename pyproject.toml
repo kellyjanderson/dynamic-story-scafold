@@ -6,10 +6,24 @@ build-backend = "setuptools.build_meta"
 name = "dynamic-story-scaffold"
 version = "0.1.0"
 description = "Bounded stochastic scene simulation for dynamic story generation."
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "build>=1.2.2",
+  "platformdirs>=4.3.6",
   "PyYAML>=6.0.2",
 ]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+]
+
+[project.scripts]
+dss = "dynamic_story_scaffold.cli:main"
+dss-install = "dynamic_story_scaffold.cli:installer_main"
 
 [project.optional-dependencies]
 dev = [
