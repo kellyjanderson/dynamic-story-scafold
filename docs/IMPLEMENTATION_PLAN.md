@@ -1346,6 +1346,8 @@ Implementation order:
    - `docs/implementation/07_PERSISTENCE_WORKFLOW.md`
 8. **Evaluation, feedback, and large-scale exploration**
    - `docs/implementation/08_EVALUATION_EXPLORATION.md`
+9. **External / LLM decision providers**
+   - `docs/implementation/09_EXTERNAL_DECISION_PROVIDERS.md`
 
 See `docs/implementation/README.md` for orchestration rules, slice boundaries,
 and handoff requirements.
