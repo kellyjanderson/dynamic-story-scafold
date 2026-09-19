@@ -21,6 +21,7 @@ from .refs import ComponentRef, EntityKind, EntityRef, TargetRef
 from .scoring import ScoreBreakdown, ScoredOption, ScoreTerm
 from .spatial import Position
 from .time import TimeSpan
+from .values import NumericRange, UNIT_INTERVAL
 
 __all__ = [
     "ActionIntent",
@@ -35,6 +36,7 @@ __all__ = [
     "EntityKind",
     "EntityRef",
     "Observation",
+    "NumericRange",
     "IntentProvider",
     "KnowledgeLevel",
     "Outcome",
@@ -47,6 +49,7 @@ __all__ = [
     "ScoreTerm",
     "TargetRef",
     "TimeSpan",
+    "UNIT_INTERVAL",
     "TickRecord",
     "WorldEvent",
     "WorldForcing",
