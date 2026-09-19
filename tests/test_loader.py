@@ -18,6 +18,8 @@ def test_example_scene_loads() -> None:
     assert len(scene.characters) == 6
     assert len(scene.creatures) == 1
     assert scene.characters[0].role == "Reedshadow"
+    assert len(scene.actors) == 7
+    assert scene.actor("blackjaw").species == "american_alligator"
     assert scene.roles["Currentcaller"].abilities[0].kind == "spell"
 
 
