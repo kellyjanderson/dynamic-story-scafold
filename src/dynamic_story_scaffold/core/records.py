@@ -105,6 +105,7 @@ class Observation:
     subject: TargetRef
     fact: str
     confidence: float
+    value: Any = True
     certainty: KnowledgeLevel = KnowledgeLevel.KNOWN
     data: Mapping[str, Any] = field(default_factory=dict)
 
