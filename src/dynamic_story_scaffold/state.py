@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from .core.effects import Effect
+from .core.records import ActorUpdate
 from .core.refs import ComponentRef, EntityKind, EntityRef
 from .core.spatial import Position
 from .schema import (
@@ -70,6 +71,31 @@ class ActorState:
             relationships=_float_mapping(initial.pop("relationships", {})),
             values=initial,
         )
+
+    def apply(self, update: ActorUpdate) -> None:
+        if update.actor != self.ref:
+            raise ValueError(
+                f"actor update for {update.actor} cannot be applied to {self.ref}"
+            )
+
+        self.health = _clamp_unit(self.health + update.health_delta)
+        self.fatigue = _clamp_unit(self.fatigue + update.fatigue_delta)
+
+        if update.destination is not None:
+            self.position = update.destination
+        if update.posture is not None:
+            self.posture = update.posture
+
+        for resource, delta in update.resource_delta.items():
+            self.resources[resource] = self.resources.get(resource, 0.0) + float(delta)
+
+        for item in update.inventory_remove:
+            try:
+                self.inventory.remove(item)
+            except ValueError:
+                pass
+        self.inventory.extend(update.inventory_add)
+        self.values.update(update.data)
 
     def snapshot(self) -> Mapping[str, Any]:
         position: Mapping[str, Any] | None = None
@@ -162,6 +188,9 @@ class WorldState:
         actor_id = reference.id if isinstance(reference, EntityRef) else reference
         return self.actors[actor_id]
 
+    def apply_actor_update(self, update: ActorUpdate) -> None:
+        self.actor(update.actor).apply(update)
+
     def snapshot(self) -> Mapping[str, Any]:
         environment: dict[str, dict[str, Any]] = {}
         for element_name, element in self.environment.items():
@@ -224,3 +253,7 @@ def _string_list(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value]
     return [str(item) for item in value]
+
+
+def _clamp_unit(value: float) -> float:
+    return min(1.0, max(0.0, value))
