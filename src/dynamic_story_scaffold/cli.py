@@ -1,132 +1,126 @@
 from __future__ import annotations
 
-import argparse
 import json
+import platform
 import sys
 from pathlib import Path
-from typing import Sequence
 
-from .database import Database
-from .platform import current_platform
+import typer
+from sqlalchemy import select
+
+from .build_history import record_build
+from .database import Build, Database
+from .paths import data_dir, database_path
 from .version import package_version
 
-
-def _status_payload(database: Database) -> dict[str, object]:
-    status = database.status()
-    platform_info = current_platform()
-    return {
-        "os_name": platform_info.os_name,
-        "sys_platform": platform_info.sys_platform,
-        "data_directory": str(platform_info.data_directory),
-        "database_path": str(status.path),
-        "schema_version": status.schema_version,
-        "installation_count": status.installation_count,
-        "build_count": status.build_count,
-    }
+app = typer.Typer(no_args_is_help=True)
+db_app = typer.Typer(no_args_is_help=True)
+builds_app = typer.Typer(no_args_is_help=True)
+app.add_typer(db_app, name="db")
+app.add_typer(builds_app, name="builds")
 
 
-def _make_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="dss",
-        description="Dynamic Story Scaffold runtime management.",
+def _database(path: Path | None) -> Database:
+    return Database(path) if path is not None else Database()
+
+
+def _emit(payload: object, json_output: bool) -> None:
+    if json_output:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
+    else:
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                typer.echo(f"{key}: {value}")
+        elif isinstance(payload, list):
+            for item in payload:
+                typer.echo(item)
+        else:
+            typer.echo(payload)
+
+
+@app.command()
+def install(
+    database: Path | None = typer.Option(None, "--database"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    db = _database(database)
+    status = db.install(package_version=package_version())
+    _emit(
+        {
+            "installed": True,
+            "package_version": package_version(),
+            "database_path": str(status.path),
+            "revision": status.revision,
+            "installation_count": status.installation_count,
+        },
+        json_output,
     )
-    parser.add_argument(
-        "--database",
-        type=Path,
-        help="Override the application SQLite database path.",
+
+
+@app.command("paths")
+def paths_command(json_output: bool = typer.Option(False, "--json")) -> None:
+    _emit(
+        {
+            "os_name": platform.system(),
+            "sys_platform": sys.platform,
+            "data_directory": str(data_dir()),
+            "database_path": str(database_path()),
+        },
+        json_output,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
 
-    install = subparsers.add_parser(
-        "install",
-        help="Create or update the per-user application database.",
+
+@db_app.command("status")
+def db_status(
+    database: Path | None = typer.Option(None, "--database"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    status = _database(database).status()
+    _emit(
+        {
+            "database_path": str(status.path),
+            "revision": status.revision,
+            "installation_count": status.installation_count,
+            "build_count": status.build_count,
+        },
+        json_output,
     )
-    install.add_argument("--json", action="store_true")
-
-    paths = subparsers.add_parser("paths", help="Show resolved application paths.")
-    paths.add_argument("--json", action="store_true")
-
-    database = subparsers.add_parser("db", help="Database operations.")
-    db_subparsers = database.add_subparsers(dest="db_command", required=True)
-    db_status = db_subparsers.add_parser("status", help="Show database status.")
-    db_status.add_argument("--json", action="store_true")
-
-    builds = subparsers.add_parser("builds", help="Recorded development builds.")
-    builds_subparsers = builds.add_subparsers(dest="builds_command", required=True)
-    builds_list = builds_subparsers.add_parser("list", help="List recent builds.")
-    builds_list.add_argument("--limit", type=int, default=20)
-    builds_list.add_argument("--json", action="store_true")
-
-    return parser
 
 
-def _database_from_args(args: argparse.Namespace) -> Database:
-    return Database(args.database) if args.database else Database()
+@builds_app.command("record")
+def builds_record(
+    directory: Path = typer.Argument(Path("dist")),
+    database: Path | None = typer.Option(None, "--database"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    build_id, artifact_count = record_build(directory, _database(database))
+    _emit(
+        {"build_id": build_id, "artifact_count": artifact_count},
+        json_output,
+    )
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = _make_parser()
-    args = parser.parse_args(argv)
-    database = _database_from_args(args)
-
-    if args.command == "install":
-        database.install(package_version=package_version())
-        _print_payload(
+@builds_app.command("list")
+def builds_list(
+    limit: int = typer.Option(20, "--limit", min=1),
+    database: Path | None = typer.Option(None, "--database"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    db = _database(database)
+    db.migrate()
+    with db.session() as session:
+        rows = session.scalars(
+            select(Build).order_by(Build.id.desc()).limit(limit)
+        ).all()
+        payload = [
             {
-                "installed": True,
-                "package_version": package_version(),
-                **_status_payload(database),
-            },
-            as_json=args.json,
-        )
-        return 0
-
-    if args.command == "paths":
-        platform_info = current_platform()
-        _print_payload(
-            {
-                "os_name": platform_info.os_name,
-                "sys_platform": platform_info.sys_platform,
-                "data_directory": str(platform_info.data_directory),
-                "database_path": str(
-                    args.database if args.database else platform_info.database
-                ),
-            },
-            as_json=args.json,
-        )
-        return 0
-
-    if args.command == "db":
-        _print_payload(_status_payload(database), as_json=args.json)
-        return 0
-
-    if args.command == "builds" and args.builds_command == "list":
-        rows = database.recent_builds(limit=args.limit)
-        _print_payload(
-            [dict(row) for row in rows],
-            as_json=args.json,
-        )
-        return 0
-
-    parser.error("unsupported command")
-    return 2
-
-
-def installer_main(argv: Sequence[str] | None = None) -> int:
-    forwarded = list(sys.argv[1:] if argv is None else argv)
-    return main(["install", *forwarded])
-
-
-def _print_payload(payload: object, *, as_json: bool) -> None:
-    if as_json:
-        print(json.dumps(payload, indent=2, sort_keys=True))
-        return
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            print(f"{key}: {value}")
-        return
-    if isinstance(payload, list):
-        for item in payload:
-            print(item)
-        return
-    print(payload)
+                "id": row.id,
+                "package_version": row.package_version,
+                "git_commit": row.git_commit,
+                "git_branch": row.git_branch,
+                "output_dir": row.output_dir,
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+    _emit(payload, json_output)
