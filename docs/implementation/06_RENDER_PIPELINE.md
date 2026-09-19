@@ -381,6 +381,16 @@ simulation truth.
 
 Expose selection→compile→render→asset inspection.
 
+### Depends on
+
+RP-01 through RP-07 plus the application-service/persistence boundaries.
+
+### Shared code
+
+**USE** selected-moment IDs, RenderRequest/RenderResult, renderer registry,
+asset references, and application services. CLI code must not compile prompts or
+call provider SDKs directly.
+
 ### Packages
 
 Typer.
