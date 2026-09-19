@@ -33,7 +33,9 @@ interval representation.
 
 - `RandomStreams`
 
-One run seed produces deterministic semantic substreams.
+The current implementation derives semantic substreams from a run seed. The
+planned run/branch context extends this by incorporating branch entropy after a
+timeline fork while preserving the same semantic-key model.
 
 Examples:
 
@@ -44,7 +46,9 @@ Examples:
 - `initiative / round / actor`
 
 This deliberately prevents random-number consumption in one subsystem from
-changing another subsystem's results.
+changing another subsystem's results. A future branch may change all post-fork
+entropy or override one scoped semantic stream without perturbing unrelated
+streams.
 
 ### `core.values`
 
@@ -154,7 +158,8 @@ Feature implementations should preserve these rules:
 1. **Use references, not ambiguous IDs or component-path strings, at subsystem
    boundaries.**
 2. **Use semantic random streams.** Never share one mutable RNG across unrelated
-   subsystems.
+   subsystems. Run/branch entropy changes the stream seed material; subsystem
+   isolation remains intact.
 3. **Intent does not mutate state.**
 4. **Resolution emits actor updates and world disturbances.**
 5. **Dynamic environment values change only through their dynamics model.**
