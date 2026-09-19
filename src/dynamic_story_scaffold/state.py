@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from .core.refs import ComponentRef
 from .schema import (
     ContinuousComponentDefinition,
     DiscreteComponentDefinition,
@@ -81,14 +82,16 @@ class WorldState:
             actors=actors,
         )
 
-    def component(self, path: str) -> ComponentState:
+    def component(self, reference: str | ComponentRef) -> ComponentState:
         try:
-            element_name, component_name = path.split(".", 1)
+            component = (
+                reference
+                if isinstance(reference, ComponentRef)
+                else ComponentRef.parse(reference)
+            )
         except ValueError as exc:
-            raise KeyError(
-                f"component path must be '<element>.<component>', got {path!r}"
-            ) from exc
-        return self.environment[element_name].components[component_name]
+            raise KeyError(str(exc)) from exc
+        return self.environment[component.element].components[component.component]
 
     def snapshot(self) -> Mapping[str, Any]:
         environment: dict[str, dict[str, Any]] = {}
