@@ -8,6 +8,7 @@ from .effects import Effect
 from .refs import ComponentRef, EntityRef, TargetRef
 from .scoring import ScoreBreakdown
 from .spatial import Position
+from .time import TimeSpan
 
 
 class Outcome(StrEnum):
@@ -135,25 +136,35 @@ class ActionResolution:
     disturbances: DisturbanceSet = field(default_factory=DisturbanceSet)
     actor_updates: Mapping[str, Any] = field(default_factory=dict)
     explanation: str | None = None
-    started_at: float = 0.0
-    ended_at: float = 0.0
+    span: TimeSpan = field(default_factory=lambda: TimeSpan.instant(0.0))
 
-    def __post_init__(self) -> None:
-        if self.ended_at < self.started_at:
-            raise ValueError("resolution end time must not precede start time")
+    @property
+    def started_at(self) -> float:
+        return self.span.start
+
+    @property
+    def ended_at(self) -> float:
+        return self.span.end
 
 
 @dataclass(frozen=True, slots=True)
 class TickRecord:
     tick: int
-    started_at: float
-    ended_at: float
+    span: TimeSpan
     changes: tuple[ComponentChange, ...] = ()
     disturbances: DisturbanceSet = field(default_factory=DisturbanceSet)
 
     @property
+    def started_at(self) -> float:
+        return self.span.start
+
+    @property
+    def ended_at(self) -> float:
+        return self.span.end
+
+    @property
     def elapsed_seconds(self) -> float:
-        return self.ended_at
+        return self.span.end
 
     @property
     def events(self) -> tuple[str, ...]:
@@ -163,8 +174,7 @@ class TickRecord:
 @dataclass(frozen=True, slots=True)
 class RoundRecord:
     round_number: int
-    started_at: float
-    ended_at: float
+    span: TimeSpan
     perceptions: Mapping[str, tuple[Observation, ...]] = field(default_factory=dict)
     intents: tuple[ActionIntent, ...] = ()
     resolutions: tuple[ActionResolution, ...] = ()
@@ -172,6 +182,10 @@ class RoundRecord:
     state_before: Mapping[str, Any] = field(default_factory=dict)
     state_after: Mapping[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        if self.ended_at < self.started_at:
-            raise ValueError("round end time must not precede start time")
+    @property
+    def started_at(self) -> float:
+        return self.span.start
+
+    @property
+    def ended_at(self) -> float:
+        return self.span.end
