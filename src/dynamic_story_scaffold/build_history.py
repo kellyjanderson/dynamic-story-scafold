@@ -1,24 +1,23 @@
 from __future__ import annotations
 
 import hashlib
-import subprocess
 from importlib.metadata import version
 from pathlib import Path
+
+from git import InvalidGitRepositoryError, Repo
 
 from .database import Artifact, Build, Database, utc_now
 
 
-def _git(*args: str) -> str | None:
+def _git_metadata(project_root: Path) -> tuple[str | None, str | None]:
     try:
-        result = subprocess.run(
-            ["git", *args],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    return result.stdout.strip() or None
+        repo = Repo(project_root, search_parent_directories=True)
+    except InvalidGitRepositoryError:
+        return None, None
+
+    commit = repo.head.commit.hexsha
+    branch = None if repo.head.is_detached else repo.active_branch.name
+    return commit, branch
 
 
 def _digest(path: Path) -> str:
@@ -28,6 +27,7 @@ def _digest(path: Path) -> str:
 
 def record_build(directory: Path, database: Database) -> tuple[int, int]:
     directory = directory.resolve()
+    project_root = directory.parent.resolve()
     artifacts = sorted(
         [*directory.glob("*.whl"), *directory.glob("*.tar.gz")],
         key=lambda path: path.name,
@@ -35,12 +35,14 @@ def record_build(directory: Path, database: Database) -> tuple[int, int]:
     if not artifacts:
         raise ValueError(f"no wheel or sdist artifacts found in {directory}")
 
+    git_commit, git_branch = _git_metadata(project_root)
     database.migrate()
     with database.session() as session:
         build = Build(
             package_version=version("dynamic-story-scaffold"),
-            git_commit=_git("rev-parse", "HEAD"),
-            git_branch=_git("branch", "--show-current"),
+            git_commit=git_commit,
+            git_branch=git_branch,
+            project_root=str(project_root),
             output_dir=str(directory),
             created_at=utc_now(),
         )
