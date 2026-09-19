@@ -8,6 +8,7 @@ from dynamic_story_scaffold import Simulation, load_scene
 from dynamic_story_scaffold.core import (
     ActionIntent,
     ActionResolution,
+    ActorUpdate,
     ComponentRef,
     DisturbanceSet,
     Effect,
@@ -20,6 +21,7 @@ from dynamic_story_scaffold.core import (
     ScoreBreakdown,
     ScoreTerm,
     WorldEvent,
+    TimeSpan,
     WorldForcing,
 )
 from dynamic_story_scaffold.state import ContinuousComponentState
@@ -108,8 +110,7 @@ def test_effect_and_action_records_share_common_targeting() -> None:
         intent=intent,
         outcome=Outcome.SUCCESS,
         disturbances=DisturbanceSet(effects=(effect,)),
-        started_at=0.3,
-        ended_at=1.2,
+        span=TimeSpan(0.3, 1.2),
     )
 
     assert resolution.disturbances.effects[0].target == target
@@ -153,3 +154,47 @@ def test_unrelated_random_consumption_does_not_change_environment() -> None:
         noisy.tick()
 
     assert baseline.state.snapshot()["environment"] == noisy.state.snapshot()["environment"]
+
+
+
+def test_actor_update_applies_shared_state_changes() -> None:
+    scene = load_scene(EXAMPLE)
+    sim = Simulation(scene, seed=5)
+    actor = sim.state.actor("reedshadow_merrit")
+
+    actor.health = 0.9
+    actor.fatigue = 0.2
+    actor.resources["focus"] = 2.0
+    actor.inventory.append("bone_knife")
+
+    sim.state.apply_actor_update(
+        ActorUpdate(
+            actor=actor.ref,
+            health_delta=-0.25,
+            fatigue_delta=0.95,
+            destination=Position(zone="center_pool"),
+            posture="swimming",
+            resource_delta={"focus": -1.0},
+            inventory_remove=("bone_knife",),
+            inventory_add=("brass_key",),
+            data={"awareness": "engaged"},
+        )
+    )
+
+    assert actor.health == pytest.approx(0.65)
+    assert actor.fatigue == 1.0
+    assert actor.position == Position(zone="center_pool")
+    assert actor.posture == "swimming"
+    assert actor.resources["focus"] == pytest.approx(1.0)
+    assert actor.inventory == ["brass_key"]
+    assert actor.values["awareness"] == "engaged"
+
+
+def test_actor_runtime_state_normalizes_common_initial_fields() -> None:
+    scene = load_scene(EXAMPLE)
+    state = Simulation(scene).state
+    merrit = state.actor("reedshadow_merrit")
+
+    assert merrit.position == Position(zone="west_log")
+    assert merrit.posture == "crouched"
+    assert merrit.values["awareness"] == "alert"
