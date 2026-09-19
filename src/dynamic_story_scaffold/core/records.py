@@ -11,6 +11,12 @@ from .spatial import Position
 from .time import TimeSpan
 
 
+class KnowledgeLevel(StrEnum):
+    KNOWN = "known"
+    INFERRED = "inferred"
+    SUSPECTED = "suspected"
+
+
 class Outcome(StrEnum):
     CRITICAL_FAILURE = "critical_failure"
     FAILURE = "failure"
@@ -98,7 +104,7 @@ class Observation:
     subject: TargetRef
     fact: str
     confidence: float
-    certainty: str = "known"
+    certainty: KnowledgeLevel = KnowledgeLevel.KNOWN
     data: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
