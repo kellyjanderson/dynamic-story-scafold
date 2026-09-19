@@ -98,7 +98,10 @@ class BuildManager:
             git_branch=git_branch,
         )
 
-        before = {path.resolve() for path in self._iter_artifact_paths(out)}
+        before = {
+            path.resolve(): (path.stat().st_size, path.stat().st_mtime_ns)
+            for path in self._iter_artifact_paths(out)
+        }
         try:
             subprocess.run(
                 [
@@ -112,11 +115,12 @@ class BuildManager:
                 cwd=root,
                 check=True,
             )
-            candidates = [
-                path
-                for path in self._iter_artifact_paths(out)
-                if clean or path.resolve() not in before
-            ]
+            candidates = []
+            for path in self._iter_artifact_paths(out):
+                resolved = path.resolve()
+                signature = (path.stat().st_size, path.stat().st_mtime_ns)
+                if clean or before.get(resolved) != signature:
+                    candidates.append(path)
             artifacts = tuple(self._record_artifacts(build_id, candidates))
             self._finish_build(build_id, status="succeeded", error=None)
             return BuildRecord(
