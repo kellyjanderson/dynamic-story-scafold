@@ -1,0 +1,436 @@
+version: 1
+
+setting:
+  name: Hollow Bank First Contact
+  biome: cypress swamp
+  time_of_day: night
+  season: late summer
+  location_type: beaver spillway
+  scale: river-otter
+  objectives:
+    - protect the spillway
+    - keep the beaver colony safe
+  tags:
+    - moonlit
+    - flooded
+    - first-contact
+
+simulation:
+  tick_seconds: 2.0
+  seed: 731994
+
+environment:
+  weather:
+    description: Slow-changing atmospheric conditions.
+    components:
+      cloud_cover:
+        initial: 0.28
+        bounds: [0.0, 1.0]
+        units: fraction
+        dynamics:
+          method: bounded_inertial
+          max_delta: 0.05
+          jitter: 0.015
+          inertia: 0.90
+          max_velocity: 0.04
+
+      rain_intensity:
+        initial: 0.0
+        bounds: [0.0, 1.0]
+        units: normalized
+        dynamics:
+          method: bounded_target
+          target: 0.08
+          response: 0.10
+          max_delta: 0.04
+          jitter: 0.005
+
+      wind_speed:
+        initial: 2.5
+        bounds: [0.0, 35.0]
+        units: m/s
+        dynamics:
+          method: bounded_inertial
+          max_delta: 1.25
+          jitter: 0.35
+          inertia: 0.86
+          max_velocity: 1.0
+
+  water:
+    description: Hydrology at the spillway.
+    components:
+      level:
+        initial: 0.62
+        bounds: [0.0, 1.0]
+        units: normalized
+        dynamics:
+          method: bounded_inertial
+          max_delta: 0.025
+          jitter: 0.004
+          inertia: 0.94
+
+      flow_speed:
+        initial: 0.34
+        bounds: [0.0, 1.0]
+        units: normalized
+        dynamics:
+          method: bounded_inertial
+          max_delta: 0.05
+          jitter: 0.008
+          inertia: 0.88
+
+      turbidity:
+        initial: 0.18
+        bounds: [0.0, 1.0]
+        units: normalized
+        dynamics:
+          method: bounded_random_walk
+          max_delta: 0.04
+          jitter: 0.01
+          drift: -0.002
+
+  terrain:
+    description: Spillway integrity and physical footing.
+    components:
+      dam_integrity:
+        initial: 0.91
+        bounds: [0.0, 1.0]
+        units: fraction
+        dynamics:
+          method: bounded_random_walk
+          max_delta: 0.03
+          jitter: 0.002
+
+      footing_stability:
+        initial: 0.72
+        bounds: [0.0, 1.0]
+        units: normalized
+        dynamics:
+          method: bounded_inertial
+          max_delta: 0.06
+          jitter: 0.008
+          inertia: 0.75
+
+      dam_state:
+        kind: discrete
+        initial: intact
+        states:
+          - intact
+          - strained
+          - leaking
+          - breached
+          - collapsed
+        transitions:
+          intact:
+            - to: strained
+              event: dam_stressed
+          strained:
+            - to: leaking
+              event: dam_damaged
+          leaking:
+            - to: breached
+              event: dam_breached
+          breached:
+            - to: collapsed
+              event: dam_collapsed
+
+  ecology:
+    description: Living systems that react more slowly than combat.
+    components:
+      frog_activity:
+        initial: 0.82
+        bounds: [0.0, 1.0]
+        dynamics:
+          method: bounded_target
+          target: 0.78
+          response: 0.12
+          max_delta: 0.08
+          jitter: 0.02
+
+      fish_density:
+        initial: 0.67
+        bounds: [0.0, 1.0]
+        dynamics:
+          method: bounded_inertial
+          max_delta: 0.05
+          jitter: 0.01
+          inertia: 0.80
+
+roles:
+  Reedshadow:
+    combat_role: skirmisher
+    preferred_range: close
+    modifiers:
+      stealth: 4
+      underwater_attack: 3
+      frontal_attack: -2
+    abilities:
+      - name: Submerged Flank
+        kind: maneuver
+        mechanics:
+          approach: submerged
+          positional_advantage: 0.35
+          requires:
+            - accessible_water
+        visual_semantics:
+          - low wake
+          - brief emergence
+          - minimal overt magic
+
+      - name: Scale Seam
+        kind: attack
+        mechanics:
+          targeting: vulnerable_seam
+          damage_bias: precision
+          range: close
+
+  Shellbreaker:
+    combat_role: frontline_striker
+    preferred_range: melee
+    modifiers:
+      impact: 4
+      grapple: 2
+      stealth: -2
+    abilities:
+      - name: Hammerfall
+        kind: attack
+        mechanics:
+          targeting: contact
+          momentum: heavy
+          weapon: stone_hammer
+        visual_semantics:
+          - physical contact
+          - broad impact motion
+
+  Holtwarden:
+    combat_role: defender
+    preferred_range: melee
+    modifiers:
+      brace: 5
+      interception: 4
+    abilities:
+      - name: Hold the Line
+        kind: reaction
+        mechanics:
+          intercepts: ally_threat
+          redirects_force: true
+          shield: root_and_plank
+        visual_semantics:
+          - shield physically between threat and ally
+
+  Currentcaller:
+    combat_role: control_caster
+    preferred_range: mid
+    modifiers:
+      hydrodynamic_control: 5
+    abilities:
+      - name: Crosscurrent
+        kind: spell
+        mechanics:
+          domain: hydrodynamic_control
+          targeting: flow_region
+          force_vector: 0.35
+          ally_stability: 0.20
+          enemy_stability: -0.15
+        visual_semantics:
+          - coherent water motion
+          - flow direction may oppose gravity
+          - luminous fish forms optional
+
+  BubbleAugur:
+    combat_role: information_support
+    preferred_range: mid
+    modifiers:
+      pressure_sense: 5
+      prediction: 3
+    abilities:
+      - name: Pressure Lattice
+        kind: spell
+        mechanics:
+          domain: pressure_sensing
+          targeting: water_volume
+          reveals_motion: true
+          ally_information_bonus: 0.25
+        visual_semantics:
+          - sparse large bubbles
+          - concentric pressure rings
+          - effect may be nearly invisible
+
+  Cachekeeper:
+    combat_role: battlefield_support
+    preferred_range: flexible
+    modifiers:
+      salvage_use: 4
+      ropework: 4
+    abilities:
+      - name: Snag Line
+        kind: control
+        mechanics:
+          targeting: object_or_creature
+          tether: true
+          uses_environment_anchor: true
+        visual_semantics:
+          - taut rope
+          - salvaged float or weight
+
+characters:
+  - id: reedshadow_merrit
+    name: Merrit
+    species: river_otter
+    role: Reedshadow
+    physical:
+      mass_kg: 8.4
+      strength: 0.72
+      agility: 0.91
+      endurance: 0.66
+      swimming: 0.98
+    priorities:
+      - protect juveniles
+      - exploit vulnerable flanks
+      - avoid prolonged land combat
+    motivations:
+      protect_holt: 0.95
+      protect_party: 0.88
+      self_preservation: 0.58
+    quirks:
+      - overcommits when another otter is grabbed
+      - prefers underwater approaches
+      - collects polished brass objects
+    initial_state:
+      position: west_log
+      posture: crouched
+      awareness: alert
+
+  - id: shellbreaker_orr
+    name: Orr
+    species: river_otter
+    role: Shellbreaker
+    physical:
+      mass_kg: 10.1
+      strength: 0.94
+      agility: 0.63
+      endurance: 0.87
+      swimming: 0.82
+    priorities:
+      - occupy the largest threat
+      - create openings for skirmishers
+    motivations:
+      protect_party: 0.92
+      challenge_large_threat: 0.84
+    quirks:
+      - commits to momentum once moving
+    initial_state:
+      position: west_stump
+      posture: ready
+
+  - id: holtwarden_sedge
+    name: Sedge
+    species: river_otter
+    role: Holtwarden
+    physical:
+      mass_kg: 9.8
+      strength: 0.88
+      agility: 0.62
+      endurance: 0.95
+      swimming: 0.80
+    priorities:
+      - interpose between threat and allies
+      - protect the spillway
+    motivations:
+      protect_party: 0.98
+      protect_dam: 0.94
+    quirks:
+      - refuses to yield ground while an ally is behind the shield
+    initial_state:
+      position: center_shallows
+      posture: braced
+
+  - id: currentcaller_nix
+    name: Nix
+    species: river_otter
+    role: Currentcaller
+    physical:
+      mass_kg: 7.9
+      strength: 0.58
+      agility: 0.81
+      endurance: 0.69
+      swimming: 0.99
+    priorities:
+      - manipulate positioning
+      - stabilize endangered allies
+    motivations:
+      protect_party: 0.91
+      understand_currents: 0.79
+    quirks:
+      - prefers indirect force over direct attacks
+    initial_state:
+      position: east_shallows
+      posture: observing
+
+  - id: bubble_augur_pell
+    name: Pell
+    species: river_otter
+    role: BubbleAugur
+    physical:
+      mass_kg: 7.4
+      strength: 0.51
+      agility: 0.78
+      endurance: 0.64
+      swimming: 0.96
+    priorities:
+      - detect motion before committing allies
+      - preserve information advantage
+    motivations:
+      protect_party: 0.83
+      understand_unknown_threats: 0.96
+    quirks:
+      - pauses when pressure patterns contradict sight
+    initial_state:
+      position: center_pool
+      posture: sensing
+
+  - id: cachekeeper_brass
+    name: Brass
+    species: river_otter
+    role: Cachekeeper
+    physical:
+      mass_kg: 8.9
+      strength: 0.77
+      agility: 0.69
+      endurance: 0.78
+      swimming: 0.84
+    priorities:
+      - turn nearby objects into tactical advantages
+      - recover endangered allies and useful gear
+    motivations:
+      protect_party: 0.87
+      preserve_tools: 0.64
+    quirks:
+      - keeps one paw free for salvage whenever possible
+    initial_state:
+      position: east_bank
+      posture: equipped
+
+creatures:
+  - id: blackjaw
+    name: Blackjaw
+    species: american_alligator
+    physical:
+      mass_kg: 310.0
+      strength: 1.0
+      agility: 0.54
+      endurance: 0.96
+      swimming: 0.93
+    motivations:
+      secure_feeding_ground: 0.86
+      avoid_serious_injury: 0.67
+      defend_route: 0.72
+    behaviors:
+      - ambush from deep water
+      - prefer explosive short engagements
+      - retreat to deep channel when destabilized
+      - use tail sweep when flanked
+    initial_state:
+      position: center_channel
+      posture: surfaced
+      awareness: assessing
