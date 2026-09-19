@@ -222,6 +222,110 @@ perception randomness cannot change environment evolution for the same run seed.
 
 See `docs/CORE_LIBRARY.md` for the contracts and invariants.
 
+# Run seeds, checkpoints, and timeline branches
+
+Randomness belongs primarily to a **simulation run**, not to the scene
+definition.
+
+The scene may contain an optional default seed for examples, tests, or a
+deliberately reproducible authored scenario. When a run starts, that value is
+copied into the run unless the caller supplies another seed. The active run then
+owns the seed used to derive all semantic random streams.
+
+A run's history is a **branchable directed acyclic graph**, not a destructive
+linear log.
+
+Conceptually:
+
+```text
+scene definition
+      |
+      v
+run A (root seed)
+      |
+      +-- checkpoint R1 -- R2 -- R3 -- R4
+                           |     |
+                           |     +-- branch C from pre-R3 checkpoint
+                           |
+                           +-- branch B from post-R2 checkpoint
+```
+
+A branch contains:
+
+- a stable branch ID
+- parent branch/run ID
+- parent checkpoint ID
+- branch point semantics: before intent, before resolution, after round, or
+  explicit intervention
+- a branch entropy seed/salt
+- optional intervention metadata
+- only the history/state that diverges after the branch point
+
+State before the fork is referenced, not copied unnecessarily.
+
+## Branching semantics
+
+A branch may be created to:
+
+- reroll a disliked stochastic outcome
+- choose a different actor intent
+- inject a deliberate world-state intervention
+- compare alternative strategies
+- explore many stochastic futures from one checkpoint
+- return to an earlier preferred timeline without destroying later branches
+
+Changing randomness never edits an already committed historical round.
+A reroll creates a sibling future from the checkpoint immediately before the
+chosen decision/resolution.
+
+Semantic random streams allow the scope of divergence to be controlled.
+
+A full branch may change all future entropy by incorporating the branch seed into
+every post-fork stream. A narrower reroll may later replace only one semantic
+stream, for example:
+
+`resolution / round-17 / blackjaw / tail-sweep`
+
+Unrelated environment, perception, or actor streams need not change.
+
+## Replay identity
+
+A stochastic result is replayable from:
+
+- scene-definition revision/hash
+- checkpoint/state identity
+- branch lineage
+- root run seed
+- branch entropy seed/salt
+- semantic stream key
+- provider/rules version
+- recorded external inputs, if any
+
+The system must therefore distinguish **replayable stochastic behavior** from
+**deterministic behavior**. Outcomes may be random; provenance may not be
+ambiguous.
+
+## Persistence model
+
+The durable history model should eventually represent:
+
+- simulation run
+- timeline branch
+- checkpoint
+- round
+- intent/resolution/event/effect records
+- branch intervention
+- active-head selection
+
+A branch should reference its parent checkpoint and store only divergent
+history. Checkpoints may be materialized snapshots for fast resume while the
+event/round records remain the audit trail.
+
+This model provides timeline branching / multiverse simulation as a natural
+consequence of seeded replay rather than as a separate simulation engine.
+
+---
+
 # Execution safety and interaction model
 
 The combination of simultaneous actions, reactions, effects, environment
@@ -539,7 +643,7 @@ A scene definition should contain:
 - non-player creatures
 - objectives
 - simulation timing
-- random seed configuration
+- optional default seed configuration; actual entropy is owned by a simulation run
 
 The YAML should specify named dynamics methods rather than arbitrary executable code.
 
@@ -1153,7 +1257,9 @@ The database should eventually persist:
 - projects/campaigns
 - scene definitions
 - simulation runs
-- seeds
+- root run seeds
+- timeline branches and branch entropy seeds
+- checkpoints and active branch heads
 - round/tick records
 - actor state snapshots
 - intents
@@ -1215,295 +1321,38 @@ The PR qualification job should cover the minimum useful integration surface for
 
 ---
 
-# Implementation phases
-
-## Phase 0 — Project infrastructure
-
-Status: implemented.
-
-Includes:
-
-- Python package
-- Hatch build/task configuration
-- platform-aware installer
-- SQLite database
-- SQLAlchemy models
-- Alembic migrations
-- Typer CLI
-- build artifact history
-- sparse PR-only CI
-
-## Phase 1 — Scene definition and bounded environment
-
-Status: implemented foundation.
-
-Includes:
-
-- YAML scene loader
-- setting
-- environment components
-- continuous bounds
-- max delta
-- jitter
-- inertia
-- named dynamics methods
-- discrete transitions
-- characters
-- roles
-- abilities
-- creatures
-- seeded simulation
-
-Remaining hardening:
-
-- richer validation/error messages
-- cross-reference validation
-- schema versioning for scene YAML
-- optional formal JSON Schema export
-
-## Phase 2 — Actor runtime state
-
-Implement:
-
-- normalized actor position/posture
-- health/injury/fatigue
-- resources
-- inventory
-- active effects
-- current/previous action
-- relationship state
-- actor-state history
-
-Acceptance criteria:
-
-- actor runtime state derives cleanly from YAML definitions
-- snapshots are serializable
-- no role-specific special casing is required
-
-## Phase 3 — Perception
-
-Implement:
-
-- perception model
-- visibility/range
-- uncertainty
-- known/suspected/unknown facts
-- species/role sensory modifiers
-- actor-specific perception snapshots
-
-Acceptance criteria:
-
-- actors can hold different beliefs about the same world
-- decisions consume perception, not canonical world state
-
-## Phase 4 — Intent generation
-
-Implement:
-
-- action candidate generation
-- utility scoring
-- priorities/motivation weighting
-- role/ability affordances
-- risk/cost scoring
-- behavioral jitter
-- intent records
-
-Acceptance criteria:
-
-- two characters with the same role may choose different actions
-- fixed seeds reproduce choices
-- generated intents do not mutate world state
-
-## Phase 5 — Action resolution
-
-Implement:
-
-- action checks
-- modifiers
-- target resistance
-- degrees of success
-- opposed actions
-- generated forcing/events
-- action timing
-
-Acceptance criteria:
-
-- action resolution is replayable from seed + state + intents
-- direct results cannot bypass state bounds
-- resolution record explains why the result occurred
-
-## Phase 6 — Interaction and simultaneous rounds
-
-Implement:
-
-- timing ordering
-- reactions/intercepts
-- action conflicts
-- movement interactions
-- interruption
-- round transaction/history
-
-Acceptance criteria:
-
-- defensive interception works
-- actions may alter later actions in the same interval
-- resolved round produces one coherent next state
-
-## Phase 7 — Effects framework
-
-Implement:
-
-- runtime effects
-- durations
-- targets
-- stacking
-- expiration
-- environmental effects
-- group/AoE effects
-
-Acceptance criteria:
-
-- Currentcaller/Bubble Augur style abilities require no engine special cases
-- invisible/informational effects are supported
-- effect stacking is deterministic and centralized
-- effect application is idempotent by effect/operation ID
-- effects cannot synchronously recurse into action resolution
-- effect-generated events enter the bounded event queue
-- an effect that refreshes/replaces itself cannot create an unbounded same-tick
-  loop
-
-## Phase 8 — Spatial model
-
-Implement incrementally:
-
-1. semantic zones
-2. positions and distances
-3. adjacency/reach
-4. line of sight/cover
-5. terrain geometry interfaces
-
-Do not build a general physics engine unless simulation requirements demand it.
-
-## Phase 9 — Cinematic observer
-
-Implement:
-
-- candidate moments
-- importance scoring
-- causality scoring
-- novelty
-- subject selection
-- visibility suppression
-- camera hints
-
-Acceptance criteria:
-
-- selected frame comes from resolved events
-- observer cannot change simulation truth
-- successive frames materially differ because state differs
-
-## Phase 10 — Prompt/render request compiler
-
-Implement renderer-neutral:
-
-- visible actor descriptions
-- actions at selected instant
-- causal effects
-- environment
-- camera
-- style profile
-- negative/avoidance constraints
-- continuity anchors
-
-Acceptance criteria:
-
-- compiler does not invent outcomes
-- low-noise style profile reproduces established art direction
-
-## Phase 11 — Renderer adapters
-
-Implement only thin adapters around existing APIs/libraries.
-
-Initial requirements:
-
-- generate image
-- continue/edit from prior frame where supported
-- retain generation metadata
-- store asset reference
-- surface failure cleanly
-
-## Phase 12 — Campaign/run persistence
-
-Persist:
-
-- source YAML
-- compiled scene definition
-- initial seed
-- every tick/round
-- perceptions
-- intents
-- rolls
-- resolutions
-- world snapshots
-- cinematic selections
-- renderer requests/assets
-
-Acceptance criteria:
-
-- a completed run can be replayed deterministically without rendering
-- an individual round can be inspected and regenerated
-
-## Phase 13 — CLI/workflow
-
-Add DSS-specific commands, using Typer rather than custom parsing.
-
-Likely surface:
-
-- create/import scene
-- validate scene
-- start run
-- advance tick/round
-- inspect state
-- inspect actor perception
-- replay
-- select cinematic moment
-- render selected moment
-
-The CLI should call the same application services used by future UI/API surfaces.
-
-## Phase 14 — Evaluation and art-direction feedback
-
-Add structured feedback records and optional analyzers.
-
-Do not block simulation work on automated aesthetic scoring.
-
----
-
-# Near-term implementation order
-
-The active feature branch should implement the next vertical slice:
-
-1. actor runtime state
-2. round coordinator skeleton with immutable phase snapshots
-3. proposal terminal states, causal budgets, and non-reentrancy guards
-4. action dependency/resource-claim representation
-5. actor perception
-6. action/ability candidate generation
-7. utility-based intent selection
-8. seeded action resolution
-9. bounded reaction windows and dependency-cycle arbitration
-10. forcing/event/effect output
-11. aggregate/conflict resolution and single canonical state commit
-12. persist round records in one short transaction
-13. deadlock/livelock/starvation/replay tests using the Hollow Bank example
-
-Only after that vertical slice is coherent should DSS add the cinematic observer.
-
-The first end-to-end milestone is:
-
-> Load Hollow Bank YAML → initialize state → snapshot the round → each actor perceives the same stable world → each actor chooses an action → action/reaction dependencies and conflicts are resolved without waits → actions resolve with seeded randomness → aggregate disturbances advance the bounded world exactly once → one coherent state commit occurs → full round history is inspectable and replayable.
-
-That milestone proves the simulation architecture independently of image generation.
+# Implementation roadmap
+
+The architecture overview is intentionally separated from executable
+implementation plans. Esther or another orchestrator should assign work from
+the documents under `docs/implementation/`, not from the historical phase list
+that previously lived here.
+
+Implementation order:
+
+1. **MVP — complete bounded simulation loop**
+   - `docs/implementation/01_MVP_SIMULATION_LOOP.md`
+2. **Timeline branching / multiverse operations**
+   - `docs/implementation/02_TIMELINE_BRANCHING.md`
+3. **Spatial and perception fidelity**
+   - `docs/implementation/03_SPATIAL_PERCEPTION.md`
+4. **Advanced interactions, reactions, and effects**
+   - `docs/implementation/04_INTERACTIONS_EFFECTS.md`
+5. **Cinematic observer**
+   - `docs/implementation/05_CINEMATIC_OBSERVER.md`
+6. **Prompt compiler and renderer adapters**
+   - `docs/implementation/06_RENDER_PIPELINE.md`
+7. **Durable campaigns, workflow, and CLI**
+   - `docs/implementation/07_PERSISTENCE_WORKFLOW.md`
+8. **Evaluation, feedback, and large-scale exploration**
+   - `docs/implementation/08_EVALUATION_EXPLORATION.md`
+
+See `docs/implementation/README.md` for orchestration rules, slice boundaries,
+and handoff requirements.
+
+The MVP remains renderer-independent. Its completion criterion is a fully
+inspectable, replayable, branch-capable simulation round from Hollow Bank.
+Rendering begins only after that simulation contract is stable.
 
 ---
 
