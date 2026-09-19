@@ -166,6 +166,44 @@ Rendering-specific concerns must not leak backward into world truth.
 
 ---
 
+# Shared core library
+
+Status: implemented foundation.
+
+Concerns reused by multiple system layers live in
+`dynamic_story_scaffold.core`. Feature modules should consume these contracts
+rather than creating local equivalents.
+
+Shared primitives currently include:
+
+- stable actor/entity/component/target references
+- semantic deterministic random streams
+- semantic-zone and coordinate-capable positions
+- time spans
+- effects and stacking semantics
+- weighted score breakdowns and generic scored options
+- perception knowledge levels
+- observations
+- action intents
+- typed actor updates
+- action outcomes/resolutions
+- world forcing/events grouped as disturbances
+- immutable tick and round records
+- provider protocols for perception, intent selection, and action resolution
+
+Actor definitions also share a common `ActorDefinition` base, and runtime
+characters/creatures share one normalized `ActorState`.
+
+Important boundary:
+
+> Resolution produces actor updates and world disturbances. It does not bypass
+> actor/environment state transition rules.
+
+Randomness is similarly isolated by semantic namespace. Consuming decision or
+perception randomness cannot change environment evolution for the same run seed.
+
+See `docs/CORE_LIBRARY.md` for the contracts and invariants.
+
 # System layers
 
 ## Layer 1 — Scene definition
