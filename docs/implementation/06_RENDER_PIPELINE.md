@@ -46,10 +46,13 @@ Define a style profile with renderer-neutral fields such as:
 
 - aspect ratio
 - realism/stylization target
-- detail density
+- overall detail density
+- high-spatial-frequency detail budget
+- focal-region high-frequency emphasis
+- secondary/background high-frequency attenuation
 - background complexity
-- microcontrast preference
-- particle/droplet density
+- microcontrast distribution
+- particle/droplet edge density
 - focal-hierarchy strength
 - lighting language
 - palette guidance
@@ -57,16 +60,26 @@ Define a style profile with renderer-neutral fields such as:
 - water-rendering guidance
 - avoidance constraints
 
-Create the established low-noise cinematic profile from the prototype work:
+Create the established cinematic profile around **high-spatial-frequency signal
+management**, not generic "noise reduction."
 
-- broad water masses rather than noisy droplets
-- restrained particles
-- reduced distant microcontrast
-- simplified backgrounds
+The profile should encode:
+
+- meaningful fine detail concentrated around focal subjects/actions
+- lower fine-detail density and microcontrast in secondary/background regions
+- broad low/mid-frequency water masses rather than globally dense droplet/ripple
+  edges
+- restrained particles and specular micro-highlights away from the focal region
+- simplified distant terrain/foliage
+- nonuniform sharpness/detail: important regions may remain highly detailed
 - few high-value accents
 - strong silhouettes
 - causal rather than decorative effects
 - spatial breathing room
+
+Do not describe all high-frequency content as noise. The failure mode is
+**perceptual interference from excessive competing high-frequency signal**, even
+when each detail is individually meaningful.
 
 ### Tests
 
@@ -184,7 +197,7 @@ prompt-variation feature is later introduced.
 - physical contact described when present
 - nonvisible effect omitted
 - absent actor/action never invented
-- low-noise profile emits its constraints
+- high-spatial-frequency management profile emits focal/background detail constraints
 - prompt compilation does not mutate request/history
 
 ### Completion
