@@ -30,6 +30,7 @@ def upgrade() -> None:
         sa.Column("package_version", sa.String(length=64), nullable=False),
         sa.Column("git_commit", sa.String(length=64), nullable=True),
         sa.Column("git_branch", sa.String(length=255), nullable=True),
+        sa.Column("project_root", sa.String(), nullable=False),
         sa.Column("output_dir", sa.String(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
@@ -47,7 +48,7 @@ def upgrade() -> None:
         sa.Column("path", sa.String(), nullable=False),
         sa.Column("size_bytes", sa.Integer(), nullable=False),
         sa.Column("sha256", sa.String(length=64), nullable=False),
-        sa.ForeignKeyConstraint(["build_id"], ["builds.id"]),
+        sa.ForeignKeyConstraint(["build_id"], ["builds.id"], ondelete="CASCADE"),
     )
 
 
