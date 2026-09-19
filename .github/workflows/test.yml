@@ -2,6 +2,7 @@ name: test
 
 on:
   pull_request:
+    types: [opened, reopened]
 
 concurrency:
   group: test-${{ github.workflow }}-${{ github.event.pull_request.number }}
