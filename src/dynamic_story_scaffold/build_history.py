@@ -26,7 +26,7 @@ def _digest(path: Path) -> str:
         return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
-def record_build(directory: Path, database: Database) -> Build:
+def record_build(directory: Path, database: Database) -> tuple[int, int]:
     directory = directory.resolve()
     artifacts = sorted(
         [*directory.glob("*.whl"), *directory.glob("*.tar.gz")],
@@ -55,8 +55,4 @@ def record_build(directory: Path, database: Database) -> Build:
         ]
         session.add(build)
         session.flush()
-        session.refresh(build)
-        build_id = build.id
-
-    with database.session() as session:
-        return session.get(Build, build_id)
+        return build.id, len(build.artifacts)
