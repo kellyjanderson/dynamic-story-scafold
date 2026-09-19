@@ -1,45 +1,82 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 DIST = ROOT / "dist"
 
-# Development commands operate directly from the checkout before the package
-# is necessarily installed.
 sys.path.insert(0, str(SRC))
 
-from dynamic_story_scaffold.builds import BuildManager  # noqa: E402
+from dynamic_story_scaffold.database import Database  # noqa: E402
 
 
-def run(*args: str) -> None:
-    subprocess.run(args, cwd=ROOT, check=True)
+def run(*args: str, capture: bool = False):
+    return subprocess.run(
+        args,
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=capture,
+    )
 
 
 def test() -> None:
     run(sys.executable, "-m", "pytest", "-q")
 
 
+def _git(*args: str) -> str | None:
+    try:
+        return run("git", *args, capture=True).stdout.strip() or None
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
 def package() -> Path:
-    record = BuildManager().build(
+    if DIST.exists():
+        shutil.rmtree(DIST)
+
+    run(sys.executable, "-m", "build", "--outdir", str(DIST), str(ROOT))
+
+    wheels = sorted(DIST.glob("*.whl"))
+    sdists = sorted(DIST.glob("*.tar.gz"))
+    if len(wheels) != 1 or len(sdists) != 1:
+        raise RuntimeError("expected exactly one wheel and one source distribution")
+
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        version = str(tomllib.load(handle)["project"]["version"])
+
+    artifacts = []
+    for path in [*wheels, *sdists]:
+        kind = "wheel" if path.suffix == ".whl" else "sdist"
+        artifacts.append((kind, path.resolve(), path.stat().st_size, _sha256(path)))
+
+    Database().record_build(
+        package_version=version,
         project_root=ROOT,
         output_dir=DIST,
-        clean=True,
+        git_commit=_git("rev-parse", "HEAD"),
+        git_branch=_git("branch", "--show-current"),
+        artifacts=artifacts,
     )
-    wheels = [
-        artifact.path
-        for artifact in record.artifacts
-        if artifact.kind == "wheel"
-    ]
-    if len(wheels) != 1:
-        raise RuntimeError(
-            f"expected exactly one wheel from build {record.id}, found {len(wheels)}"
-        )
     return wheels[0]
+
+
+def build() -> None:
+    test()
+    package()
 
 
 def install() -> None:
@@ -56,29 +93,11 @@ def install() -> None:
     run(sys.executable, "-m", "dynamic_story_scaffold", "install")
 
 
-def build() -> None:
-    """Qualification build: run tests, then create tracked wheel and sdist."""
-    test()
-    package()
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Development commands for Dynamic Story Scaffold."
-    )
-    parser.add_argument(
-        "command",
-        choices=("test", "build", "package", "install"),
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=("test", "build", "package", "install"))
     args = parser.parse_args()
-
-    commands = {
-        "test": test,
-        "build": build,
-        "package": package,
-        "install": install,
-    }
-    commands[args.command]()
+    {"test": test, "build": build, "package": package, "install": install}[args.command]()
     return 0
 
 
