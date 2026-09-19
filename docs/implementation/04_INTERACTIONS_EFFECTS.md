@@ -360,6 +360,16 @@ Complex action/environment coupling remains bounded and auditable.
 
 Prove termination and consistency under intentionally pathological interactions.
 
+### Depends on
+
+IX-01 through IX-07 and the MVP coordinator/replay infrastructure.
+
+### Shared code
+
+**USE** proposal terminal states, causal budgets, dependency/claim records,
+semantic random streams, round records, and replay services. Do not introduce
+test-only alternate scheduling semantics.
+
 ### Packages
 
 - Hypothesis
