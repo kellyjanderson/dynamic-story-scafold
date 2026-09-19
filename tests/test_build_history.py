@@ -21,5 +21,7 @@ def test_record_build_records_hatch_artifacts(tmp_path: Path) -> None:
     with database.session() as session:
         build = session.scalar(select(Build).where(Build.id == build_id))
         assert build is not None
+        assert Path(build.project_root) == tmp_path.resolve()
+        assert Path(build.output_dir) == dist.resolve()
         assert len(build.artifacts) == 2
         assert {item.kind for item in build.artifacts} == {"wheel", "sdist"}
