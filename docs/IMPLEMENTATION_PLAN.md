@@ -164,6 +164,24 @@ A completed simulation round should be usable by:
 
 Rendering-specific concerns must not leak backward into world truth.
 
+
+### 8. The simulation must never block on causal dependencies
+
+The simulation should avoid logical "wait until X finishes" relationships inside
+a round.
+
+Instead:
+
+- every phase reads a stable snapshot
+- actors/systems emit proposals rather than mutating shared state
+- dependencies and contested resources are declared explicitly
+- conflicts are arbitrated deterministically
+- resolved changes are committed at a phase boundary
+- a phase never recursively re-enters itself or an earlier phase
+
+This is the primary protection against logical deadlocks, livelocks, circular
+reactions, order-dependent state corruption, and replay divergence.
+
 ---
 
 # Shared core library
@@ -203,6 +221,277 @@ Randomness is similarly isolated by semantic namespace. Consuming decision or
 perception randomness cannot change environment evolution for the same run seed.
 
 See `docs/CORE_LIBRARY.md` for the contracts and invariants.
+
+# Execution safety and interaction model
+
+The combination of simultaneous actions, reactions, effects, environment
+dynamics, persistence, and future external providers creates several classes of
+system-interaction failure that must be handled explicitly.
+
+## Risk assessment
+
+| Failure mode | Example | Required mitigation |
+| --- | --- | --- |
+| Circular dependency | Holtwarden waits to see where Currentcaller moves while Currentcaller waits for Holtwarden's interception | No blocking waits; resolve declared dependencies as a graph |
+| Reaction recursion | attack → intercept → counter-intercept → new intercept | Finite reaction windows and a hard causal-depth budget |
+| Livelock | actors repeatedly replan in response to one another without state progress | Replanning occurs only at the next decision window unless an explicit bounded reaction exists |
+| Starvation | a low-priority actor is perpetually interrupted | Bounded deferral plus deterministic fairness/tie-breaking |
+| Conflicting writes | two actions move the same actor or claim the same object | Explicit write/claim sets and deterministic arbitration |
+| Order dependence | dictionary iteration changes which action wins | Stable ordering and semantic RNG streams; never depend on container iteration order |
+| Event feedback loop | dam event creates an effect which emits the same dam event again in the same tick | Queued event generations, idempotency keys, causal-depth/event budgets |
+| Oscillating state | one effect raises a value while another immediately lowers it and each retriggers the other | Aggregate forcing once, then evolve each dynamic component once per tick |
+| Nested advancement | an effect callback calls `tick()` while the current tick is unresolved | The coordinator is non-reentrant; callbacks may only emit proposals |
+| Partial-state reads | one actor perceives pre-commit state while another sees half-applied updates | Immutable phase snapshots and atomic phase commit |
+| Retry duplication | a retried provider/action applies the same effect twice | Stable operation IDs and idempotent commit semantics |
+| Database writer contention | multiple long SQLite write transactions overlap | One short write transaction per commit; never hold a DB transaction during simulation/provider work |
+| External-provider stall | an LLM or renderer call never returns while state is locked | No state/DB locks across external calls; timeout/cancel/fallback outside the commit transaction |
+| Causal explosion | AoE/reactions generate exponentially more events | Per-round event, reaction, and causal-node budgets with explicit overflow status |
+
+## Single-writer coordinator
+
+The simulation coordinator is the only component allowed to commit canonical
+world state.
+
+Feature providers may:
+
+- read immutable snapshots
+- return observations
+- return intents
+- return action-resolution proposals
+- return actor updates
+- return effects
+- return world disturbances
+
+They may not directly advance the simulation clock or mutate canonical world
+state.
+
+The initial engine should remain single-threaded at the commit layer even if
+perception, scoring, or external-provider work is later evaluated concurrently.
+
+This deliberately replaces lock coordination with **single-writer phase
+barriers**.
+
+## Snapshot → propose → arbitrate → commit
+
+Every mutable phase follows the same transaction shape:
+
+1. **Snapshot** — freeze the canonical state visible to the phase.
+2. **Propose** — providers compute proposed actions/changes from that snapshot.
+3. **Declare dependencies** — proposals expose targets, claims, read/write sets,
+   reaction relationships, and timing.
+4. **Arbitrate** — the coordinator resolves conflicts and cycles without
+   mutating canonical state.
+5. **Commit** — accepted changes are applied exactly once.
+6. **Record** — immutable history captures inputs, arbitration, outcomes, and
+   committed changes.
+
+No provider can observe a half-committed phase.
+
+## Dependency graph and cycle handling
+
+Action/reaction dependencies should be represented as a directed graph.
+
+The coordinator should:
+
+1. topologically resolve acyclic portions
+2. detect strongly connected components
+3. never "wait" for a strongly connected component to resolve itself
+4. send each cyclic component to a deterministic simultaneous-conflict policy
+
+A cyclic group may be resolved by:
+
+- simultaneous opposed checks
+- initiative/timing comparison
+- mutually compatible merge
+- explicit cancellation
+- deterministic tie-break
+- deferral to the next decision window
+
+The chosen rule must be recorded in the round history.
+
+Cycles are therefore **data to resolve**, not execution waits.
+
+## Resource claims and write sets
+
+Actions should eventually declare the state they intend to read, write, or
+claim.
+
+Examples:
+
+- actor position
+- posture
+- inventory item
+- exclusive terrain location
+- held/grappled target
+- environmental component
+- shared resource
+
+Writes fall into categories:
+
+### Commutative/aggregatable writes
+
+Examples:
+
+- multiple forces on `terrain.dam_integrity`
+- health/fatigue deltas
+- compatible resource deltas
+
+These are aggregated before bounded application.
+
+### Exclusive writes
+
+Examples:
+
+- two actors both acquire the same unique object
+- two incompatible destinations for one actor
+- mutually exclusive posture/state changes
+
+These require arbitration.
+
+### Rule-governed writes
+
+Effects use their declared stacking semantics:
+
+- replace
+- stack
+- strongest
+- refresh
+
+Each dynamic environment component is evolved **once per tick** from the
+aggregate forcing for that tick. An action cannot cause the same component to
+advance its dynamics multiple times inside one tick.
+
+## Event queue semantics
+
+Events are not synchronously recursive callbacks.
+
+Maintain explicit queues by generation:
+
+- events emitted by the current resolution phase
+- events eligible for the current bounded reaction window
+- events deferred to the next phase/tick
+
+Each event should eventually have:
+
+- stable event/operation ID
+- source
+- target
+- causal parent
+- causal depth
+- generation/tick
+- payload
+
+The engine must enforce configurable limits for:
+
+- maximum reaction depth
+- maximum causal depth
+- maximum events per round
+- maximum resolutions per round
+
+Exceeding a budget produces a recorded overflow/deferred result rather than
+continuing indefinitely.
+
+## Reaction windows
+
+Reactions are explicit bounded phases, not arbitrary callbacks.
+
+Rules:
+
+- a primary intent may open one or more defined reaction windows
+- eligible reactors propose reactions from the same stable snapshot plus the
+  triggering intent/event
+- reactions have deterministic timing/priority
+- reactions may alter/cancel/redirect proposals
+- a reaction may not recursively invoke the coordinator
+- reaction-to-reaction chains consume a finite causal budget
+- once a reaction window closes, later consequences are scheduled for a future
+  window or tick
+
+This prevents infinite intercept/counter-intercept loops.
+
+## Progress and starvation guarantees
+
+Every round must make monotonic scheduler progress even if world state does not
+change.
+
+The coordinator must guarantee that:
+
+- each phase has a finite work budget
+- every proposal reaches a terminal status: accepted, rejected, canceled,
+  deferred, failed, or overflowed
+- no proposal remains "waiting"
+- deferred proposals carry a bounded deferral count
+- deterministic fairness rules prevent permanent starvation where fairness is
+  semantically appropriate
+
+A round may legitimately produce no physical change, but its scheduler must
+always terminate.
+
+## Idempotency and retries
+
+Simulation commit operations must be idempotent.
+
+Provider calls, persistence writes, and renderer calls may eventually be
+retried, but a retry must not duplicate:
+
+- damage
+- resource consumption
+- effects
+- events
+- build/history rows
+- rendered-asset links
+
+Use stable IDs for run, round, intent, resolution, event, effect, and commit
+operations where persistence/retry requires them.
+
+## Persistence transaction boundaries
+
+SQLite is a single-writer database and should be treated accordingly.
+
+Rules:
+
+- simulation computation occurs outside write transactions
+- external provider calls occur outside write transactions
+- renderer calls occur outside write transactions
+- one coordinator commit persists the completed round/state/history in a short
+  transaction
+- database rows never act as runtime locks between simulation components
+- if the persistence commit fails, canonical in-memory advancement is not
+  considered durable and recovery/retry uses the same operation IDs
+
+If multi-process execution is introduced later, coordination should use an
+established queue/database mechanism rather than ad-hoc SQLite locking.
+
+## Deterministic ordering
+
+Any place where order affects semantics must define a stable order.
+
+Never rely on:
+
+- dict iteration
+- set iteration
+- database row order without `ORDER BY`
+- coroutine completion order
+- wall-clock timing
+
+Tie-breaking inputs should derive from semantic identifiers and the run seed so
+replay produces the same result.
+
+## Failure isolation
+
+A failed subsystem should not leave the round partially committed.
+
+Examples:
+
+- perception provider failure → recorded provider failure/fallback
+- intent provider failure → safe fallback intent or explicit no-action
+- action resolver failure → failed resolution
+- persistence failure → no durable round commit
+- renderer failure → simulation remains valid; rendering can retry separately
+
+Rendering is always downstream and can never hold simulation progress hostage.
+
+---
 
 # System layers
 
@@ -509,29 +798,82 @@ The environment system then determines the actual bounded state change.
 
 # Layer 6 — Simultaneous round/tick resolution
 
-Combat and dynamic scenes should not behave as strictly serialized board-game turns unless the scene explicitly requests that mode.
+Combat and dynamic scenes should not behave as strictly serialized board-game
+turns unless the scene explicitly requests that mode.
+
+The round coordinator must implement the single-writer, phase-barrier execution
+model described in **Execution safety and interaction model**.
 
 A round should conceptually proceed as:
 
-1. advance slow environmental processes
-2. compute actor perceptions
-3. generate actor intents
-4. determine action timing/initiative
-5. resolve interactions and conflicts
-6. generate forces/events
-7. apply bounded world dynamics
-8. update actor state
-9. update perceptions/beliefs/history
-10. identify meaningful moments in the interval
+1. snapshot canonical state for the round
+2. advance scheduled slow environmental processes that belong before decisions
+3. compute all actor perceptions from the same stable snapshot
+4. generate actor intents without mutating world state
+5. normalize intents and declare targets/dependencies/read-write/claim sets
+6. determine deterministic timing/initiative
+7. open bounded reaction windows
+8. build the action/reaction dependency graph
+9. resolve acyclic dependencies
+10. detect strongly connected components and resolve them with an explicit
+    simultaneous-conflict policy
+11. collect proposed actor updates, effects, forcing, and events
+12. arbitrate exclusive writes and aggregate commutative writes
+13. evolve each dynamic environment component once from aggregate forcing
+14. apply accepted actor/effect/environment changes in one canonical commit
+15. persist immutable round history in one short database transaction
+16. identify meaningful moments in the completed interval
 
-This allows actions to interfere with one another.
+No step may synchronously invoke another round/tick or re-enter an earlier
+phase.
 
-Examples:
+If new information would cause an actor to reconsider outside an explicit
+reaction window, the reconsideration is scheduled for the next decision window.
 
-- defender intercepts an attack aimed at a caster
-- water-control spell alters another actor's footing
-- an alligator roll changes the geometry of several simultaneous attacks
-- collapsing terrain interrupts multiple intents
+### Conflict-resolution requirements
+
+The coordinator must define deterministic policies for:
+
+- multiple actors targeting the same exclusive resource
+- incompatible movement destinations
+- simultaneous movement through constrained spaces
+- grapple/hold ownership
+- mutually exclusive posture/state transitions
+- canceled or invalidated intents
+- opposed actions
+- equal initiative/timing
+- reactions that target other reactions
+
+Every proposal reaches a terminal scheduler status.
+
+### Causal budgets
+
+A round must enforce configurable ceilings for:
+
+- reaction depth
+- causal depth
+- generated events
+- generated resolutions
+- retries
+- deferrals
+
+Budget exhaustion records an overflow/deferred result and terminates the chain;
+it never loops until a timeout.
+
+### Acceptance criteria
+
+- defensive interception works without recursive coordinator calls
+- circular action dependencies terminate deterministically
+- reaction chains cannot exceed their configured depth
+- actions may alter later actions in the same interval through declared
+  dependency/reaction rules
+- two writes to the same exclusive state cannot silently last-write-win
+- aggregate forcing evolves a dynamic component only once per tick
+- provider completion order does not affect results
+- every round terminates with no waiting proposals
+- fixed seed + initial state + provider outputs reproduce the same round
+- a resolved round produces one coherent next state and one immutable audit
+  record
 
 ---
 
@@ -791,6 +1133,17 @@ The database should eventually persist:
 
 Large binary assets should be referenced rather than stored directly in SQLite.
 
+
+Round persistence is part of the coordinator commit boundary:
+
+- compute perceptions/intents/resolutions outside the database write transaction
+- persist the completed round/state/history together in one short transaction
+- never hold a SQLite write transaction while calling an external provider or
+  renderer
+- use stable operation IDs so a failed/retried commit cannot duplicate a round,
+  event, effect, or asset association
+- all ordered replay queries must use explicit ordering
+
 ---
 
 # Packaging and project tooling
@@ -980,6 +1333,12 @@ Acceptance criteria:
 
 - Currentcaller/Bubble Augur style abilities require no engine special cases
 - invisible/informational effects are supported
+- effect stacking is deterministic and centralized
+- effect application is idempotent by effect/operation ID
+- effects cannot synchronously recurse into action resolution
+- effect-generated events enter the bounded event queue
+- an effect that refreshes/replaces itself cannot create an unbounded same-tick
+  loop
 
 ## Phase 8 — Spatial model
 
@@ -1093,22 +1452,52 @@ Do not block simulation work on automated aesthetic scoring.
 The active feature branch should implement the next vertical slice:
 
 1. actor runtime state
-2. actor perception
-3. action/ability candidate generation
-4. utility-based intent selection
-5. seeded action resolution
-6. forcing/event output
-7. apply results through existing bounded world dynamics
-8. persist round records
-9. tests using the Hollow Bank example
+2. round coordinator skeleton with immutable phase snapshots
+3. proposal terminal states, causal budgets, and non-reentrancy guards
+4. action dependency/resource-claim representation
+5. actor perception
+6. action/ability candidate generation
+7. utility-based intent selection
+8. seeded action resolution
+9. bounded reaction windows and dependency-cycle arbitration
+10. forcing/event/effect output
+11. aggregate/conflict resolution and single canonical state commit
+12. persist round records in one short transaction
+13. deadlock/livelock/starvation/replay tests using the Hollow Bank example
 
 Only after that vertical slice is coherent should DSS add the cinematic observer.
 
 The first end-to-end milestone is:
 
-> Load Hollow Bank YAML → initialize state → each actor perceives the scene → each actor chooses an action → actions resolve with seeded randomness → world state advances within bounds → full round history is inspectable and replayable.
+> Load Hollow Bank YAML → initialize state → snapshot the round → each actor perceives the same stable world → each actor chooses an action → action/reaction dependencies and conflicts are resolved without waits → actions resolve with seeded randomness → aggregate disturbances advance the bounded world exactly once → one coherent state commit occurs → full round history is inspectable and replayable.
 
 That milestone proves the simulation architecture independently of image generation.
+
+---
+
+# Interaction-safety test matrix
+
+The simulator needs adversarial tests specifically aimed at interaction bugs.
+
+Required cases include:
+
+- two actors waiting on one another's proposed outcomes
+- two defenders attempting to intercept the same attack
+- intercept → counter-intercept reaction cycle
+- two actors claiming the same unique object
+- incompatible simultaneous destinations for one actor
+- multiple forces targeting the same environment component
+- event A → effect B → event A feedback cycle
+- effect refresh/replace self-cycle
+- repeated provider retry with the same operation ID
+- external provider timeout with no held DB transaction
+- persistence failure after resolution but before durable commit
+- deterministic replay with intentionally shuffled provider completion order
+- starvation scenario with repeated higher-priority reactions
+- event-budget and causal-depth exhaustion
+- no-op/livelock round where actors repeatedly prefer incompatible actions
+
+Tests should assert both **correct outcome** and **termination within bounded work**.
 
 ---
 
