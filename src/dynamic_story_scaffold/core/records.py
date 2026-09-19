@@ -127,6 +127,19 @@ class ActionIntent:
 
 
 @dataclass(frozen=True, slots=True)
+class ActorUpdate:
+    actor: EntityRef
+    health_delta: float = 0.0
+    fatigue_delta: float = 0.0
+    destination: Position | None = None
+    posture: str | None = None
+    resource_delta: Mapping[str, float] = field(default_factory=dict)
+    inventory_add: tuple[str, ...] = ()
+    inventory_remove: tuple[str, ...] = ()
+    data: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class ActionResolution:
     intent: ActionIntent
     outcome: Outcome
@@ -134,7 +147,7 @@ class ActionResolution:
     total: float | None = None
     difficulty: float | None = None
     disturbances: DisturbanceSet = field(default_factory=DisturbanceSet)
-    actor_updates: Mapping[str, Any] = field(default_factory=dict)
+    actor_updates: tuple[ActorUpdate, ...] = ()
     explanation: str | None = None
     span: TimeSpan = field(default_factory=lambda: TimeSpan.instant(0.0))
 
