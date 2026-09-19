@@ -46,3 +46,12 @@ def test_discrete_transition_targets_must_exist() -> None:
 
     with pytest.raises(SceneDefinitionError, match="unknown"):
         parse_scene(raw)
+
+
+
+def test_invalid_bounds_raise_scene_definition_error() -> None:
+    raw = yaml.safe_load(EXAMPLE.read_text())
+    raw["environment"]["weather"]["components"]["cloud_cover"]["bounds"] = [2.0, 1.0]
+
+    with pytest.raises(SceneDefinitionError, match="range minimum"):
+        parse_scene(raw)
