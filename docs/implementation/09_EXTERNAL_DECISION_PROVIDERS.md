@@ -129,6 +129,13 @@ Implement one real external decision provider.
 
 EP-02.
 
+### Shared code
+
+**USE** the provider-neutral adapter protocol, Pydantic transport schema,
+Observation/ActionIntent contracts, legal-candidate validation, and coordinator
+fallback/terminal-status handling. Provider-specific types must not leak into
+core domain records.
+
 ### Packages
 
 - openai
