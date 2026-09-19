@@ -6,6 +6,7 @@ from .randomness import RandomStreams
 from .records import (
     ActionIntent,
     ActionResolution,
+    ActorUpdate,
     ComponentChange,
     DisturbanceSet,
     Observation,
@@ -23,6 +24,7 @@ from .time import TimeSpan
 __all__ = [
     "ActionIntent",
     "ActionResolution",
+    "ActorUpdate",
     "ActionResolver",
     "ComponentChange",
     "ComponentRef",
