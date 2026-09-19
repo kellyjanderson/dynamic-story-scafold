@@ -151,6 +151,14 @@ class TickRecord:
     changes: tuple[ComponentChange, ...] = ()
     disturbances: DisturbanceSet = field(default_factory=DisturbanceSet)
 
+    @property
+    def elapsed_seconds(self) -> float:
+        return self.ended_at
+
+    @property
+    def events(self) -> tuple[str, ...]:
+        return tuple(sorted(self.disturbances.event_names))
+
 
 @dataclass(frozen=True, slots=True)
 class RoundRecord:
