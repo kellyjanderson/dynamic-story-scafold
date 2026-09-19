@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import platform
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import typer
@@ -11,7 +12,6 @@ from sqlalchemy import select
 from .build_history import record_build
 from .database import Build, Database
 from .paths import data_dir, database_path
-from .version import package_version
 
 app = typer.Typer(no_args_is_help=True)
 db_app = typer.Typer(no_args_is_help=True)
@@ -44,11 +44,11 @@ def install(
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
     db = _database(database)
-    status = db.install(package_version=package_version())
+    status = db.install(package_version=version("dynamic-story-scaffold"))
     _emit(
         {
             "installed": True,
-            "package_version": package_version(),
+            "package_version": version("dynamic-story-scaffold"),
             "database_path": str(status.path),
             "revision": status.revision,
             "installation_count": status.installation_count,
