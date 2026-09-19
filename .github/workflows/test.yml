@@ -1,17 +1,35 @@
 name: test
 
 on:
+  pull_request:
   push:
     branches: ["main"]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: "Run full macOS/Linux/Windows qualification"
+        required: false
+        default: true
+        type: boolean
 
 concurrency:
   group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  cross-platform:
+  automatic:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip hatch
+      - run: hatch run test
+
+  full-matrix:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_matrix
     strategy:
       fail-fast: false
       matrix:
