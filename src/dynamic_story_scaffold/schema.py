@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Sequence
 
 from .core.refs import ComponentRef
+from .core.values import NumericRange, UNIT_INTERVAL
 
 Scalar = int | float | str | bool
 ComponentKind = Literal["continuous", "discrete"]
@@ -13,19 +14,7 @@ class SceneDefinitionError(ValueError):
     """Raised when a scene definition is structurally invalid."""
 
 
-@dataclass(frozen=True)
-class Bounds:
-    minimum: float
-    maximum: float
-
-    def __post_init__(self) -> None:
-        if self.minimum > self.maximum:
-            raise SceneDefinitionError(
-                f"bounds minimum {self.minimum} exceeds maximum {self.maximum}"
-            )
-
-    def clamp(self, value: float) -> float:
-        return min(self.maximum, max(self.minimum, value))
+Bounds = NumericRange
 
 
 @dataclass(frozen=True)
@@ -44,7 +33,7 @@ class DynamicsDefinition:
             raise SceneDefinitionError("dynamics.max_delta must be >= 0")
         if self.jitter < 0:
             raise SceneDefinitionError("dynamics.jitter must be >= 0")
-        if not 0.0 <= self.inertia <= 1.0:
+        if not UNIT_INTERVAL.contains(self.inertia):
             raise SceneDefinitionError("dynamics.inertia must be between 0 and 1")
 
 
@@ -59,7 +48,7 @@ class ContinuousComponentDefinition:
     kind: ComponentKind = "continuous"
 
     def __post_init__(self) -> None:
-        if not self.bounds.minimum <= self.initial <= self.bounds.maximum:
+        if not self.bounds.contains(self.initial):
             raise SceneDefinitionError(
                 f"{self.name}.initial={self.initial} is outside "
                 f"[{self.bounds.minimum}, {self.bounds.maximum}]"
@@ -73,7 +62,7 @@ class DiscreteTransition:
     probability: float = 1.0
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.probability <= 1.0:
+        if not UNIT_INTERVAL.contains(self.probability):
             raise SceneDefinitionError("transition probability must be between 0 and 1")
 
 
