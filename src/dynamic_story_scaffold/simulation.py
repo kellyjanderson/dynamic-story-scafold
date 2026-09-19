@@ -5,6 +5,7 @@ from typing import Iterable, Mapping
 from .core.randomness import RandomStreams
 from .core.records import ComponentChange, DisturbanceSet, TickRecord
 from .core.refs import ComponentRef
+from .core.time import TimeSpan
 from .dynamics import evolve_continuous
 from .schema import (
     ContinuousComponentDefinition,
@@ -128,8 +129,7 @@ class Simulation:
 
         return TickRecord(
             tick=tick_number,
-            started_at=started_at,
-            ended_at=self.state.elapsed_seconds,
+            span=TimeSpan(started_at, self.state.elapsed_seconds),
             changes=tuple(changes),
             disturbances=applied,
         )
