@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.20",
+  "GitPython>=3.1",
   "platformdirs>=4.3",
   "PyYAML>=6.0",
   "SQLAlchemy>=2.0",
@@ -29,7 +30,12 @@ dependencies = [
 
 [tool.hatch.envs.default.scripts]
 test = "pytest -q"
+package = [
+  "hatch build -c",
+  "dss builds record dist",
+]
 build = [
+  "pytest -q",
   "hatch build -c",
   "dss builds record dist",
 ]
@@ -42,7 +48,3 @@ install = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-
-[tool.alembic]
-script_location = "src/dynamic_story_scaffold/migrations"
-prepend_sys_path = ["."]
