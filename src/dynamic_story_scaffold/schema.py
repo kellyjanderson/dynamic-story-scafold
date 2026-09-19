@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Sequence
 
+from .core.refs import ComponentRef
+from .core.values import NumericRange, UNIT_INTERVAL
+
 Scalar = int | float | str | bool
 ComponentKind = Literal["continuous", "discrete"]
 
@@ -11,19 +14,13 @@ class SceneDefinitionError(ValueError):
     """Raised when a scene definition is structurally invalid."""
 
 
-@dataclass(frozen=True)
-class Bounds:
-    minimum: float
-    maximum: float
-
+@dataclass(frozen=True, slots=True)
+class Bounds(NumericRange):
     def __post_init__(self) -> None:
-        if self.minimum > self.maximum:
-            raise SceneDefinitionError(
-                f"bounds minimum {self.minimum} exceeds maximum {self.maximum}"
-            )
-
-    def clamp(self, value: float) -> float:
-        return min(self.maximum, max(self.minimum, value))
+        try:
+            super(Bounds, self).__post_init__()
+        except ValueError as exc:
+            raise SceneDefinitionError(str(exc)) from exc
 
 
 @dataclass(frozen=True)
@@ -42,7 +39,7 @@ class DynamicsDefinition:
             raise SceneDefinitionError("dynamics.max_delta must be >= 0")
         if self.jitter < 0:
             raise SceneDefinitionError("dynamics.jitter must be >= 0")
-        if not 0.0 <= self.inertia <= 1.0:
+        if not UNIT_INTERVAL.contains(self.inertia):
             raise SceneDefinitionError("dynamics.inertia must be between 0 and 1")
 
 
@@ -57,7 +54,7 @@ class ContinuousComponentDefinition:
     kind: ComponentKind = "continuous"
 
     def __post_init__(self) -> None:
-        if not self.bounds.minimum <= self.initial <= self.bounds.maximum:
+        if not self.bounds.contains(self.initial):
             raise SceneDefinitionError(
                 f"{self.name}.initial={self.initial} is outside "
                 f"[{self.bounds.minimum}, {self.bounds.maximum}]"
@@ -71,7 +68,7 @@ class DiscreteTransition:
     probability: float = 1.0
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.probability <= 1.0:
+        if not UNIT_INTERVAL.contains(self.probability):
             raise SceneDefinitionError("transition probability must be between 0 and 1")
 
 
@@ -126,17 +123,29 @@ class SceneSetting:
     tags: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
-class CharacterDefinition:
+@dataclass(frozen=True, kw_only=True)
+class ActorDefinition:
     id: str
     name: str
     species: str
-    role: str
     physical: Mapping[str, float] = field(default_factory=dict)
-    priorities: tuple[str, ...] = ()
     motivations: Mapping[str, float] = field(default_factory=dict)
-    quirks: tuple[str, ...] = ()
     initial_state: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            raise SceneDefinitionError("actor id must not be empty")
+        if not self.name:
+            raise SceneDefinitionError(f"actor {self.id!r} name must not be empty")
+        if not self.species:
+            raise SceneDefinitionError(f"actor {self.id!r} species must not be empty")
+
+
+@dataclass(frozen=True, kw_only=True)
+class CharacterDefinition(ActorDefinition):
+    role: str
+    priorities: tuple[str, ...] = ()
+    quirks: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -158,15 +167,9 @@ class RoleDefinition:
     combat_role: str | None = None
 
 
-@dataclass(frozen=True)
-class CreatureDefinition:
-    id: str
-    name: str
-    species: str
-    physical: Mapping[str, float] = field(default_factory=dict)
-    motivations: Mapping[str, float] = field(default_factory=dict)
+@dataclass(frozen=True, kw_only=True)
+class CreatureDefinition(ActorDefinition):
     behaviors: tuple[str, ...] = ()
-    initial_state: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -203,12 +206,44 @@ class SceneDefinition:
                     f"{character.role!r}"
                 )
 
-        ids = [c.id for c in self.characters] + [c.id for c in self.creatures]
+        ids = [actor.id for actor in self.actors]
         duplicates = {item for item in ids if ids.count(item) > 1}
         if duplicates:
             raise SceneDefinitionError(
                 f"actor ids must be unique; duplicates: {sorted(duplicates)}"
             )
+
+    @property
+    def actors(self) -> tuple[ActorDefinition, ...]:
+        return (*self.characters, *self.creatures)
+
+    def actor(self, actor_id: str) -> ActorDefinition:
+        for actor in self.actors:
+            if actor.id == actor_id:
+                return actor
+        raise KeyError(actor_id)
+
+    @property
+    def component_refs(self) -> tuple[ComponentRef, ...]:
+        return tuple(
+            ComponentRef(element_name, component_name)
+            for element_name, element in self.environment.items()
+            for component_name in element.components
+        )
+
+    def component_definition(
+        self,
+        reference: str | ComponentRef,
+    ) -> DynamicComponentDefinition:
+        component = (
+            reference
+            if isinstance(reference, ComponentRef)
+            else ComponentRef.parse(reference)
+        )
+        try:
+            return self.environment[component.element].components[component.component]
+        except KeyError as exc:
+            raise KeyError(component.path) from exc
 
 
 def tuple_of_strings(value: Sequence[Any] | None) -> tuple[str, ...]:

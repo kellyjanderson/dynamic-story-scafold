@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from .core.effects import Effect
+from .core.records import ActorUpdate
+from .core.refs import ComponentRef, EntityKind, EntityRef
+from .core.spatial import Position
+from .core.values import UNIT_INTERVAL
 from .schema import (
+    ActorDefinition,
     ContinuousComponentDefinition,
     DiscreteComponentDefinition,
     SceneDefinition,
@@ -32,7 +38,99 @@ class EnvironmentElementState:
 @dataclass
 class ActorState:
     id: str
+    position: Position | None = None
+    posture: str | None = None
+    health: float = 1.0
+    fatigue: float = 0.0
+    resources: dict[str, float] = field(default_factory=dict)
+    inventory: list[str] = field(default_factory=list)
+    active_effects: list[Effect] = field(default_factory=list)
+    relationships: dict[str, float] = field(default_factory=dict)
     values: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        UNIT_INTERVAL.require(self.health, name="actor health")
+        UNIT_INTERVAL.require(self.fatigue, name="actor fatigue")
+
+    @property
+    def ref(self) -> EntityRef:
+        return EntityRef(EntityKind.ACTOR, self.id)
+
+    @classmethod
+    def from_definition(cls, definition: ActorDefinition) -> "ActorState":
+        initial = dict(definition.initial_state)
+        return cls(
+            id=definition.id,
+            position=_parse_position(initial.pop("position", None)),
+            posture=_optional_string(initial.pop("posture", None)),
+            health=float(initial.pop("health", 1.0)),
+            fatigue=float(initial.pop("fatigue", 0.0)),
+            resources=_float_mapping(initial.pop("resources", {})),
+            inventory=_string_list(initial.pop("inventory", ())),
+            relationships=_float_mapping(initial.pop("relationships", {})),
+            values=initial,
+        )
+
+    def apply(self, update: ActorUpdate) -> None:
+        if update.actor != self.ref:
+            raise ValueError(
+                f"actor update for {update.actor} cannot be applied to {self.ref}"
+            )
+
+        self.health = UNIT_INTERVAL.clamp(self.health + update.health_delta)
+        self.fatigue = UNIT_INTERVAL.clamp(self.fatigue + update.fatigue_delta)
+
+        if update.destination is not None:
+            self.position = update.destination
+        if update.posture is not None:
+            self.posture = update.posture
+
+        for resource, delta in update.resource_delta.items():
+            self.resources[resource] = self.resources.get(resource, 0.0) + float(delta)
+
+        for item in update.inventory_remove:
+            try:
+                self.inventory.remove(item)
+            except ValueError:
+                pass
+        self.inventory.extend(update.inventory_add)
+        self.values.update(update.data)
+
+    def snapshot(self) -> Mapping[str, Any]:
+        position: Mapping[str, Any] | None = None
+        if self.position is not None:
+            position = {
+                "zone": self.position.zone,
+                "x": self.position.x,
+                "y": self.position.y,
+                "z": self.position.z,
+            }
+
+        return {
+            "id": self.id,
+            "position": position,
+            "posture": self.posture,
+            "health": self.health,
+            "fatigue": self.fatigue,
+            "resources": dict(self.resources),
+            "inventory": list(self.inventory),
+            "active_effects": [
+                {
+                    "id": effect.id,
+                    "kind": effect.kind,
+                    "source": str(effect.source),
+                    "target": str(effect.target),
+                    "magnitude": effect.magnitude,
+                    "duration_seconds": effect.duration_seconds,
+                    "stacking": effect.stacking.value,
+                    "tags": list(effect.tags),
+                    "data": dict(effect.data),
+                }
+                for effect in self.active_effects
+            ],
+            "relationships": dict(self.relationships),
+            "values": dict(self.values),
+        }
 
 
 @dataclass
@@ -62,17 +160,10 @@ class WorldState:
                     )
             environment[element_name] = EnvironmentElementState(components)
 
-        actors: dict[str, ActorState] = {}
-        for character in scene.characters:
-            actors[character.id] = ActorState(
-                id=character.id,
-                values=dict(character.initial_state),
-            )
-        for creature in scene.creatures:
-            actors[creature.id] = ActorState(
-                id=creature.id,
-                values=dict(creature.initial_state),
-            )
+        actors = {
+            definition.id: ActorState.from_definition(definition)
+            for definition in scene.actors
+        }
 
         return cls(
             tick=0,
@@ -81,14 +172,28 @@ class WorldState:
             actors=actors,
         )
 
-    def component(self, path: str) -> ComponentState:
+    def component(self, reference: str | ComponentRef) -> ComponentState:
         try:
-            element_name, component_name = path.split(".", 1)
+            component = (
+                reference
+                if isinstance(reference, ComponentRef)
+                else ComponentRef.parse(reference)
+            )
         except ValueError as exc:
-            raise KeyError(
-                f"component path must be '<element>.<component>', got {path!r}"
-            ) from exc
-        return self.environment[element_name].components[component_name]
+            raise KeyError(str(exc)) from exc
+        return self.environment[component.element].components[component.component]
+
+    def actor(self, reference: str | EntityRef) -> ActorState:
+        if isinstance(reference, EntityRef):
+            if reference.kind is not EntityKind.ACTOR:
+                raise KeyError(str(reference))
+            actor_id = reference.id
+        else:
+            actor_id = reference
+        return self.actors[actor_id]
+
+    def apply_actor_update(self, update: ActorUpdate) -> None:
+        self.actor(update.actor).apply(update)
 
     def snapshot(self) -> Mapping[str, Any]:
         environment: dict[str, dict[str, Any]] = {}
@@ -109,7 +214,47 @@ class WorldState:
             "elapsed_seconds": self.elapsed_seconds,
             "environment": environment,
             "actors": {
-                actor_id: dict(actor.values)
+                actor_id: actor.snapshot()
                 for actor_id, actor in self.actors.items()
             },
         }
+
+
+def _parse_position(value: Any) -> Position | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return Position(zone=value)
+    if isinstance(value, Mapping):
+        return Position(
+            zone=_optional_string(value.get("zone")),
+            x=_optional_float(value.get("x")),
+            y=_optional_float(value.get("y")),
+            z=_optional_float(value.get("z")),
+        )
+    raise ValueError(f"unsupported actor position {value!r}")
+
+
+def _optional_string(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
+def _optional_float(value: Any) -> float | None:
+    return None if value is None else float(value)
+
+
+def _float_mapping(value: Any) -> dict[str, float]:
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("expected mapping")
+    return {str(key): float(item) for key, item in value.items()}
+
+
+def _string_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return [str(item) for item in value]
+

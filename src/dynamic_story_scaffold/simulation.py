@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from random import Random
+from secrets import randbits
 from typing import Iterable, Mapping
 
+from .core.randomness import RandomStreams
+from .core.records import ComponentChange, DisturbanceSet, TickRecord
+from .core.refs import ComponentRef
+from .core.time import TimeSpan
 from .dynamics import evolve_continuous
 from .schema import (
     ContinuousComponentDefinition,
@@ -17,28 +20,15 @@ from .state import (
     WorldState,
 )
 
-
-@dataclass(frozen=True)
-class ComponentChange:
-    path: str
-    before: float | str
-    after: float | str
-
-
-@dataclass(frozen=True)
-class TickResult:
-    tick: int
-    elapsed_seconds: float
-    changes: tuple[ComponentChange, ...] = ()
-    events: tuple[str, ...] = ()
+TickResult = TickRecord
 
 
 class Simulation:
     """Stateful, seeded simulator for a loaded scene definition.
 
-    Continuous dynamics are evolved once per tick. External forcing is supplied
-    by component path, such as weather.wind_speed. Discrete components change
-    only through explicitly declared transitions.
+    Inputs enter the environment as a DisturbanceSet: bounded continuous forcing,
+    explicit events, and effects. Legacy forcing/events arguments remain
+    supported and compile into the same shared representation.
     """
 
     def __init__(
@@ -51,37 +41,58 @@ class Simulation:
         self.scene = scene
         self.state = state if state is not None else WorldState.from_scene(scene)
         effective_seed = scene.simulation.seed if seed is None else seed
-        self.rng = Random(effective_seed)
+        self.seed = randbits(64) if effective_seed is None else int(effective_seed)
+        self.random = RandomStreams(self.seed)
+        # Backward-compatible stream for callers that used Simulation.rng.
+        # Environment evolution never consumes this stream.
+        self.rng = self.random.stream("legacy")
 
     def tick(
         self,
         *,
+        disturbances: DisturbanceSet | None = None,
         forcing: Mapping[str, float] | None = None,
         events: Iterable[str] = (),
-    ) -> TickResult:
-        forcing = forcing or {}
-        event_set = frozenset(str(event) for event in events)
+    ) -> TickRecord:
+        legacy = DisturbanceSet.from_legacy(
+            forcing=forcing,
+            events=tuple(str(event) for event in events),
+        )
+        applied = (disturbances or DisturbanceSet()).merged(legacy)
+        forcing_by_component = applied.forcing_by_component()
+        for reference in forcing_by_component:
+            self.scene.component_definition(reference)
+        event_names = applied.event_names
         changes: list[ComponentChange] = []
+
+        started_at = self.state.elapsed_seconds
+        tick_number = self.state.tick + 1
 
         for element_name, element_definition in self.scene.environment.items():
             element_state = self.state.environment[element_name]
             for component_name, definition in element_definition.components.items():
-                path = f"{element_name}.{component_name}"
+                reference = ComponentRef(element_name, component_name)
                 state = element_state.components[component_name]
 
                 if isinstance(definition, ContinuousComponentDefinition):
                     if not isinstance(state, ContinuousComponentState):
-                        raise TypeError(f"{path} has mismatched runtime state")
+                        raise TypeError(f"{reference.path} has mismatched runtime state")
+                    rng = self.random.stream(
+                        "environment",
+                        "continuous",
+                        tick_number,
+                        reference.path,
+                    )
                     next_state = evolve_continuous(
                         definition,
                         state,
-                        self.rng,
-                        forcing=float(forcing.get(path, 0.0)),
+                        rng,
+                        forcing=forcing_by_component.get(reference, 0.0),
                     )
                     if next_state.value != state.value:
                         changes.append(
                             ComponentChange(
-                                path=path,
+                                component=reference,
                                 before=state.value,
                                 after=next_state.value,
                             )
@@ -91,16 +102,23 @@ class Simulation:
 
                 if isinstance(definition, DiscreteComponentDefinition):
                     if not isinstance(state, DiscreteComponentState):
-                        raise TypeError(f"{path} has mismatched runtime state")
+                        raise TypeError(f"{reference.path} has mismatched runtime state")
+                    rng = self.random.stream(
+                        "environment",
+                        "discrete",
+                        tick_number,
+                        reference.path,
+                    )
                     next_value = self._evolve_discrete(
                         definition,
                         state.value,
-                        event_set,
+                        event_names,
+                        rng,
                     )
                     if next_value != state.value:
                         changes.append(
                             ComponentChange(
-                                path=path,
+                                component=reference,
                                 before=state.value,
                                 after=next_value,
                             )
@@ -108,16 +126,18 @@ class Simulation:
                         state.value = next_value
                     continue
 
-                raise TypeError(f"unsupported component definition at {path}")
+                raise TypeError(
+                    f"unsupported component definition at {reference.path}"
+                )
 
-        self.state.tick += 1
+        self.state.tick = tick_number
         self.state.elapsed_seconds += self.scene.simulation.tick_seconds
 
-        return TickResult(
-            tick=self.state.tick,
-            elapsed_seconds=self.state.elapsed_seconds,
+        return TickRecord(
+            tick=tick_number,
+            span=TimeSpan(started_at, self.state.elapsed_seconds),
             changes=tuple(changes),
-            events=tuple(sorted(event_set)),
+            disturbances=applied,
         )
 
     def _evolve_discrete(
@@ -125,12 +145,13 @@ class Simulation:
         definition: DiscreteComponentDefinition,
         current: str,
         events: frozenset[str],
+        rng,
     ) -> str:
         candidates = definition.transitions.get(current, ())
         for transition in candidates:
             if not self._transition_is_eligible(transition, events):
                 continue
-            if self.rng.random() <= transition.probability:
+            if rng.random() <= transition.probability:
                 return transition.to
         return current
 
