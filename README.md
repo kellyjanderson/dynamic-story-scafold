@@ -28,6 +28,73 @@ This first implementation provides:
 
 The next layer should add perception, intent selection, action resolution, actor-state changes, and cinematic moment selection.
 
+## Build, package, and install
+
+Project tooling is delegated to established packages rather than implemented in DSS:
+
+- **Hatch/Hatchling**: development environments, task scripts, wheel/sdist packaging.
+- **pytest**: tests.
+- **Typer**: command-line interface.
+- **SQLAlchemy**: database persistence.
+- **Alembic**: schema migrations.
+- **platformdirs**: operating-system application-data locations.
+- **GitPython**: Git metadata for build records.
+
+Install Hatch once with your preferred tool manager, for example `pipx install hatch`, then use:
+
+```bash
+hatch run test
+hatch run package
+hatch run build
+hatch run install
+```
+
+- `test`: run the test suite.
+- `package`: build wheel + source distribution with Hatch and record their metadata in SQLite.
+- `build`: run tests, package, and record the successful artifacts.
+- `install`: package, record the artifacts, then run the DSS installer to create or migrate application state.
+
+The installed application CLI exposes:
+
+```bash
+dss install
+dss paths
+dss db status
+dss builds record dist
+dss builds list
+```
+
+### Platform-aware application data
+
+The SQLite database is application state, never package data. `platformdirs` selects the normal per-user location:
+
+- **macOS:** `~/Library/Application Support/dynamic-story-scaffold/story-scaffold.sqlite3`
+- **Linux / other XDG Unix:** `$XDG_DATA_HOME/dynamic-story-scaffold/story-scaffold.sqlite3`, normally `~/.local/share/dynamic-story-scaffold/story-scaffold.sqlite3`
+- **Windows:** the user's local application-data directory under `dynamic-story-scaffold\story-scaffold.sqlite3`
+
+Inspect the actual resolved path with:
+
+```bash
+dss paths
+```
+
+For CI, portable installs, or managed deployments, `DYNAMIC_STORY_SCAFFOLD_DATA_DIR` overrides the application-data directory.
+
+The installer runs Alembic migrations to the latest revision and records the installed package version and platform.
+
+### Database-backed build history
+
+Hatch performs the actual build. DSS records only project-specific metadata after a successful package build:
+
+- package version
+- Git commit and branch
+- project root and output directory
+- wheel/sdist artifact type
+- artifact path and size
+- SHA-256 digest
+
+`dss builds list` queries that history.
+
 ## Scene YAML
 
 See `examples/hollow_bank.yaml` for a complete scene.
@@ -206,9 +273,10 @@ A later cinematic layer may choose not to render overt magic at all if the physi
 
 ## Development
 
+Hatch owns the development environment. After installing Hatch, no project-specific development bootstrap script is required.
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest
+hatch run test
+hatch run build
+hatch run install
 ```
