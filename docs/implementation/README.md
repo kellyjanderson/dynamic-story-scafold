@@ -21,6 +21,33 @@ Later documents may be implemented partially or reordered when their declared
 dependencies permit it. Do not pull later policy into the MVP merely because it
 is described elsewhere.
 
+## Git/GitHub feature lifecycle
+
+Repository-level rules are defined in `AGENTS.md`. For implementation work,
+Esther and all worker agents must use:
+
+```text
+create feature branch
+        ↓
+implement complete feature on that branch
+        ↓
+qualify locally
+        ↓
+open PR only when feature is complete
+        ↓
+qualify/review PR
+        ↓
+merge PR
+        ↓
+delete feature branch
+        ↓
+start next feature from integrated branch
+```
+
+Do not stack the next feature on the current feature branch unless explicitly
+directed. CI is PR-open-only, so opening a PR is a feature-completion event, not
+a development checkpoint.
+
 ## Orchestrator rules
 
 ### A slice is one implementation prompt
