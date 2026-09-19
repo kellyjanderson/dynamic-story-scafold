@@ -146,7 +146,8 @@ Initial terms:
 - novelty versus recent selected moments
 - character/role readability
 - environmental readability
-- clutter penalty
+- competing-detail/clutter penalty
+- estimated focal-versus-background detail separation
 
 Weights belong to a cinematic/style policy, not core.
 
@@ -158,7 +159,7 @@ candidate scores and sampled choice.
 - score contribution inspection
 - same seed/policy replays selection
 - near-tie stochastic selection can differ under different branch entropy
-- clutter penalty does not rewrite simulation content
+- competing-detail penalty does not rewrite or suppress required simulation truth
 
 ### Completion
 
@@ -309,6 +310,6 @@ For several stored Hollow Bank rounds, demonstrate that selected moments:
 
 - are traceable to actual causal records
 - emphasize real engagement
-- omit clutter without inventing facts
+- suppress secondary competing detail without inventing facts
 - replay under same observer seed/policy
 - vary appropriately as simulation state changes
