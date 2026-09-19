@@ -9,6 +9,7 @@ from .refs import ComponentRef, EntityRef, TargetRef
 from .scoring import ScoreBreakdown
 from .spatial import Position
 from .time import TimeSpan
+from .values import UNIT_INTERVAL
 
 
 class KnowledgeLevel(StrEnum):
@@ -110,8 +111,7 @@ class Observation:
     data: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError("observation confidence must be between 0 and 1")
+        UNIT_INTERVAL.require(self.confidence, name="observation confidence")
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,8 +130,7 @@ class ActionIntent:
     def __post_init__(self) -> None:
         if not self.action:
             raise ValueError("intent action must not be empty")
-        if not 0.0 <= self.risk_tolerance <= 1.0:
-            raise ValueError("risk tolerance must be between 0 and 1")
+        UNIT_INTERVAL.require(self.risk_tolerance, name="risk tolerance")
 
 
 @dataclass(frozen=True, slots=True)
