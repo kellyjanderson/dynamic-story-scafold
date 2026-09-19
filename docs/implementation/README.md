@@ -1,7 +1,7 @@
 # Implementation Plan Set
 
-These documents are written for Esther, another orchestrator, or a chain of
-implementation agents. The architecture source of truth remains
+These documents are written to be executed by either an orchestrator or chained
+implementation prompts/agents. The architecture source of truth remains
 `docs/IMPLEMENTATION_PLAN.md`; this directory turns that architecture into
 bounded implementation work.
 
@@ -24,7 +24,7 @@ is described elsewhere.
 ## Git/GitHub feature lifecycle
 
 Repository-level rules are defined in `AGENTS.md`. For implementation work,
-Esther and all worker agents must use:
+The orchestrator and all worker agents must use:
 
 ```text
 create feature branch
