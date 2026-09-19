@@ -127,7 +127,7 @@ Different random processes should remain separate:
 
 - action resolution uncertainty
 - decision jitter
-- environmental noise
+- environmental stochastic variation
 - rare environmental events
 - perception uncertainty
 - initiative/timing variation
@@ -339,8 +339,8 @@ system-interaction failure that must be handled explicitly.
 | Circular dependency | Holtwarden waits to see where Currentcaller moves while Currentcaller waits for Holtwarden's interception | No blocking waits; resolve declared dependencies as a graph |
 | Reaction recursion | attack → intercept → counter-intercept → new intercept | Finite reaction windows and a hard causal-depth budget |
 | Livelock | actors repeatedly replan in response to one another without state progress | Replanning occurs only at the next decision window unless an explicit bounded reaction exists |
-| Starvation | a low-priority actor is perpetually interrupted | Bounded deferral plus deterministic fairness/tie-breaking |
-| Conflicting writes | two actions move the same actor or claim the same object | Explicit write/claim sets and deterministic arbitration |
+| Starvation | a low-priority actor is perpetually interrupted | Bounded deferral plus explicit fairness policy, optionally using seeded stochastic arbitration |
+| Conflicting writes | two actions move the same actor or claim the same object | Explicit write/claim sets and rule-based or seeded stochastic arbitration |
 | Order dependence | dictionary iteration changes which action wins | Stable ordering and semantic RNG streams; never depend on container iteration order |
 | Event feedback loop | dam event creates an effect which emits the same dam event again in the same tick | Queued event generations, idempotency keys, causal-depth/event budgets |
 | Oscillating state | one effect raises a value while another immediately lowers it and each retriggers the other | Aggregate forcing once, then evolve each dynamic component once per tick |
@@ -1172,16 +1172,31 @@ Initial style controls should include:
 - magic visibility
 - water rendering style
 
-The low-noise cinematic style established during prototyping should become a reusable profile:
+The cinematic style established during prototyping should become a reusable
+**high-spatial-frequency management** profile.
 
-- broad water shapes
-- restrained droplets
-- low micro-contrast outside focal areas
-- softened backgrounds
-- few bright accents
-- clear silhouettes
-- effects tied to causal interactions
-- strong spatial separation
+The concern is not necessarily random image noise. Fine details may all be valid
+signal individually—fur strands, droplets, bark texture, foliage edges, ripples,
+reflections—but excessive high-spatial-frequency signal distributed across the
+frame creates perceptual interference. The human visual system then experiences
+the image as noisy/cluttered because too many fine-scale signals compete with
+the focal hierarchy.
+
+The profile should therefore:
+
+- preserve high-spatial-frequency detail around important subjects and causal
+  interactions
+- attenuate fine detail and microcontrast in secondary/background regions
+- retain broad low/mid-frequency shapes for scene readability
+- avoid globally uniform sharpness/detail density
+- use edge/detail density as an attentional budget rather than maximizing it
+- render water as broad sheets/arcs/masses where appropriate rather than a
+  frame-wide field of droplets and ripple edges
+- restrain particles and specular micro-highlights outside focal regions
+- soften/simplify distant terrain and foliage
+- keep few high-value contrast accents
+- preserve clear silhouettes and spatial separation
+- tie overt visual effects to real causal interactions
 
 ---
 
@@ -1230,11 +1245,18 @@ Examples:
 
 Later automated checks may use:
 
-- edge/detail density
+- spatial-frequency energy distribution by image region
+- edge/detail density by focal versus secondary/background regions
+- microcontrast distribution
 - saliency
 - actor detection
 - scene-state/render consistency
 - prompt/image alignment
+
+These checks should distinguish **excessive competing signal** from random
+sensor/generation noise. A highly detailed image can be technically clean while
+still producing perceptual noise because high-frequency signal is spread too
+uniformly across the frame.
 
 Automated evaluation should assist human taste, not replace it.
 
