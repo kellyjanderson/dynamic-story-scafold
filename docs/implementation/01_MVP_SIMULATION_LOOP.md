@@ -829,8 +829,13 @@ Before opening the MVP PR:
 ```bash
 hatch run test
 hatch run build
-hatch run dss install
+hatch run package
 ```
+
+For installed-runtime qualification, install the produced wheel into a clean
+environment, run `dss-maintain setup`, then exercise the installed `dss`
+entry point. Do not invoke `dss` from the Hatch/source environment as an
+installation step.
 
 Required adversarial coverage:
 
