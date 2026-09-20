@@ -33,14 +33,6 @@ dependencies = [
 
 [tool.hatch.envs.default.scripts]
 test = "pytest -q"
-package = [
-  "hatch build -c",
-  "python scripts/record_build.py dist",
-]
-build = [
-  "test",
-  "package",
-]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
