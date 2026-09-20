@@ -43,7 +43,7 @@
       "argv": [
         "/bin/sh",
         "-lc",
-        "/bin/sh scripts/automation-hatch run package"
+        "./scripts/build.sh"
       ],
       "timeout_seconds": 600
     },
