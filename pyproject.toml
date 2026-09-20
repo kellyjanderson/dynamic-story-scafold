@@ -10,7 +10,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.20",
-  "GitPython>=3.1",
   "networkx>=3.4",
   "platformdirs>=4.3",
   "PyYAML>=6.0",
@@ -20,12 +19,14 @@ dependencies = [
 
 [project.scripts]
 dss = "dynamic_story_scaffold.cli:app"
+dss-maintain = "dynamic_story_scaffold.maintenance_cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dynamic_story_scaffold"]
 
 [tool.hatch.envs.default]
 dependencies = [
+  "GitPython>=3.1",
   "hypothesis>=6.120",
   "pytest>=8.3",
 ]
@@ -34,15 +35,11 @@ dependencies = [
 test = "pytest -q"
 package = [
   "hatch build -c",
-  "dss builds record dist",
+  "python scripts/record_build.py dist",
 ]
 build = [
   "test",
   "package",
-]
-install = [
-  "package",
-  "dss install",
 ]
 
 [tool.pytest.ini_options]
