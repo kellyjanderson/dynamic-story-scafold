@@ -23,8 +23,8 @@ def test_install_runs_alembic_and_records_install(monkeypatch, tmp_path: Path) -
     second = database.install(package_version="1.2.3")
 
     assert first.path.exists()
-    assert first.revision == "0001"
-    assert second.revision == "0001"
+    assert first.revision == "0002"
+    assert second.revision == "0002"
     assert second.installation_count == 2
 
     tables = set(inspect(database.engine()).get_table_names())
