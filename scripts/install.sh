@@ -13,15 +13,17 @@ run_pipx() {
     return
   fi
 
+  if command -v brew >/dev/null 2>&1; then
+    echo "==> Installing pipx with Homebrew"
+    brew install pipx
+    pipx ensurepath >/dev/null 2>&1 || true
+    pipx "$@"
+    return
+  fi
+
   cat >&2 <<'EOF'
 DSS installation requires pipx, the standard Python application installer.
-
-On macOS:
-  brew install pipx
-  pipx ensurepath
-
-Then rerun:
-  ./scripts/install.sh
+Install pipx with your OS package manager, then rerun ./scripts/install.sh.
 EOF
   exit 1
 }
