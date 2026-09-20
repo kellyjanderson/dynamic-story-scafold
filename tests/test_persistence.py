@@ -182,4 +182,4 @@ def test_migration_upgrades_fresh_database(tmp_path: Path) -> None:
         "checkpoints",
         "simulation_rounds",
     } <= tables
-    assert database.status().revision == "0002"
+    assert database.status().revision == "0003"
