@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any, Mapping
 
 from .effects import Effect
-from .identity import RoundId
+from .identity import OperationId, RoundId
 from .refs import ComponentRef, EntityRef, TargetRef
 from .scoring import ScoreBreakdown
 from .spatial import Position
@@ -57,14 +57,18 @@ class ProposalTerminalStatus(StrEnum):
 class WorkBudget:
     max_proposals: int = 256
     max_resolutions: int = 256
+    max_reaction_depth: int = 4
     max_causal_depth: int = 8
+    max_events_per_round: int = 256
     max_deferrals: int = 64
 
     def __post_init__(self) -> None:
         for name, value in (
             ("max_proposals", self.max_proposals),
             ("max_resolutions", self.max_resolutions),
+            ("max_reaction_depth", self.max_reaction_depth),
             ("max_causal_depth", self.max_causal_depth),
+            ("max_events_per_round", self.max_events_per_round),
             ("max_deferrals", self.max_deferrals),
         ):
             if value < 0:
@@ -89,6 +93,8 @@ class RoundExecutionMetadata:
     committed: bool = False
     error: str | None = None
     arbitrations: tuple[Mapping[str, Any], ...] = ()
+    reactions: tuple[Mapping[str, Any], ...] = ()
+    generations: tuple[Mapping[str, Any], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,10 +137,18 @@ class WorldEvent:
     source: EntityRef | None = None
     target: TargetRef | None = None
     data: Mapping[str, Any] = field(default_factory=dict)
+    operation_id: OperationId | None = None
+    causal_parent: OperationId | None = None
+    causal_depth: int = 0
+    generation: int = 0
 
     def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("event name must not be empty")
+        if self.causal_depth < 0:
+            raise ValueError("event causal depth must be non-negative")
+        if self.generation < 0:
+            raise ValueError("event generation must be non-negative")
 
 
 @dataclass(frozen=True, slots=True)
