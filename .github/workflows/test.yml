@@ -12,11 +12,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip hatch
+      - run: python -m pip install --upgrade pip hatch pipx
+      - run: hatch run test
+      - run: hatch build -c
       - run: |
           tmp=$(mktemp -d)
-          export DSS_INSTALL_ROOT="$tmp/app"
-          export DSS_BIN_DIR="$tmp/bin"
+          export PIPX_HOME="$tmp/pipx"
+          export PIPX_BIN_DIR="$tmp/bin"
           export DYNAMIC_STORY_SCAFFOLD_DATA_DIR="$tmp/data"
           ./scripts/install.sh
           "$tmp/bin/dss" --help >/dev/null
