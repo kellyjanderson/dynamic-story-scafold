@@ -2,27 +2,27 @@
   "repository": "kellyjanderson/dynamic-story-scafold",
   "targets": {
     "unit": {
-      "argv": ["hatch", "run", "pytest", "-q", "-m", "not integration and not regression"],
+      "argv": ["./scripts/automation-hatch", "run", "pytest", "-q", "-m", "not integration and not regression"],
       "timeout_seconds": 600
     },
     "integration": {
-      "argv": ["/bin/sh", "-lc", "hatch run pytest -q -m integration; rc=$?; if [ $rc -eq 5 ]; then echo 'No integration tests selected'; exit 0; fi; exit $rc"],
+      "argv": ["/bin/sh", "-lc", "./scripts/automation-hatch run pytest -q -m integration; rc=$?; if [ $rc -eq 5 ]; then echo 'No integration tests selected'; exit 0; fi; exit $rc"],
       "timeout_seconds": 900
     },
     "regression": {
-      "argv": ["/bin/sh", "-lc", "hatch run pytest -q -m regression; rc=$?; if [ $rc -eq 5 ]; then echo 'No regression tests selected'; exit 0; fi; exit $rc"],
+      "argv": ["/bin/sh", "-lc", "./scripts/automation-hatch run pytest -q -m regression; rc=$?; if [ $rc -eq 5 ]; then echo 'No regression tests selected'; exit 0; fi; exit $rc"],
       "timeout_seconds": 900
     },
     "full": {
-      "argv": ["hatch", "run", "pytest", "-q"],
+      "argv": ["./scripts/automation-hatch", "run", "pytest", "-q"],
       "timeout_seconds": 1800
     },
     "package": {
-      "argv": ["hatch", "build", "-c"],
+      "argv": ["./scripts/automation-hatch", "build", "-c"],
       "timeout_seconds": 600
     },
     "installed": {
-      "argv": ["/bin/sh", "-lc", "tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; export DYNAMIC_STORY_SCAFFOLD_DATA_DIR=\"$tmp\"; hatch run dss install --json; hatch run dss db status --json"],
+      "argv": ["/bin/sh", "-lc", "tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; export DYNAMIC_STORY_SCAFFOLD_DATA_DIR=\"$tmp\"; ./scripts/automation-hatch run dss install --json; ./scripts/automation-hatch run dss db status --json"],
       "timeout_seconds": 600
     },
     "branch-diff-check": {
