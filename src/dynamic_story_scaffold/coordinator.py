@@ -169,6 +169,7 @@ class RoundCoordinator:
                         intents.append(selected)
 
             self._phase(phases, CoordinatorPhase.NORMALIZE_PROPOSALS)
+            seen_operation_ids: set[OperationId] = set()
             for index, selected in enumerate(proposed_inputs):
                 if isinstance(selected, ActionProposal):
                     normalized = selected
@@ -180,12 +181,16 @@ class RoundCoordinator:
                         intent=selected,
                     )
                 proposal = _ProposalState(normalized)
-                if index >= self.work_budget.max_proposals:
+                if normalized.operation_id in seen_operation_ids:
+                    proposal.status = ProposalTerminalStatus.CANCELED
+                    proposal.detail = "duplicate operation id"
+                elif index >= self.work_budget.max_proposals:
                     proposal.status = ProposalTerminalStatus.OVERFLOWED
                     proposal.detail = "proposal budget exceeded"
                 elif normalized.causal_depth > self.work_budget.max_causal_depth:
                     proposal.status = ProposalTerminalStatus.OVERFLOWED
                     proposal.detail = "causal depth budget exceeded"
+                seen_operation_ids.add(normalized.operation_id)
                 proposals.append(proposal)
 
             self._phase(phases, CoordinatorPhase.REACTION_ARBITRATION)
