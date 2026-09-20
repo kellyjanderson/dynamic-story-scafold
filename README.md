@@ -28,105 +28,79 @@ This first implementation provides:
 
 The next layer should add perception, intent selection, action resolution, actor-state changes, and cinematic moment selection.
 
-## Source, build, installation, and runtime contexts
+## Install and use
 
-DSS deliberately separates four execution contexts.
-
-### 1. Repository/development context
-
-The Git checkout contains source, tests, documentation, migration sources, and
-repository tooling. Hatch/Hatchling owns development environments and builds.
+For normal use from a source checkout, there is one installation step:
 
 ```bash
-hatch run test
-hatch run package
-hatch run build
+git pull --ff-only origin main
+./scripts/install.sh
 ```
 
-- `test` runs the repository test suite.
-- `package` creates wheel/sdist artifacts and writes `dist/build-manifest.json`.
-- `build` runs tests and then packages.
-
-Repository/build tooling must **not** invoke the application CLI to build,
-install, migrate, or qualify DSS.
-
-Build provenance is a distribution artifact, not application state. The build
-manifest records package version, Git commit/branch, artifact sizes, and SHA-256
-digests without touching the runtime database.
-
-### 2. Package installation context
-
-Install a built wheel with a package manager or eventual OS installer. For
-example:
+After the installer completes, use the application:
 
 ```bash
-python -m pip install dist/dynamic_story_scaffold-*.whl
-```
-
-Package installation creates the executable entry points but does not silently
-initialize or migrate user application state.
-
-### 3. Installer / technical-support maintenance context
-
-The installed package provides a separate maintenance executable:
-
-```bash
-dss-maintain setup
-dss-maintain db status
-dss-maintain db migrate
-```
-
-`dss-maintain setup` is the normal post-install/upgrade setup operation. It
-creates or upgrades application state and records the installed package.
-
-`dss-maintain db migrate` is an explicit installer/support operation. Normal
-runtime execution never runs Alembic migrations.
-
-### 4. Runtime application context
-
-The user-facing application CLI is only:
-
-```bash
-dss
-```
-
-Normal commands include:
-
-```bash
-dss paths
+dss --help
 dss scene validate ...
 dss run start ...
 dss run advance ...
-dss run show ...
-dss round show ...
-dss run replay ...
 ```
 
-The runtime application assumes setup has already been completed. If its
-database is missing or stale, it stops with a maintenance instruction instead
-of creating or migrating state.
+The installer owns all implementation details required to turn the checked-out
+source into a usable installation:
 
-### Platform-aware application data
+- repository qualification
+- package build
+- wheel installation
+- isolated application environment creation/update
+- application-state setup/migration
+- command exposure under `~/.local/bin`
 
-Mutable application state is never stored in or inferred from the Git checkout.
-`platformdirs` selects the normal per-user location:
+A normal user should **not** need to invoke Hatch, pip, a venv, Alembic,
+`dss-maintain`, or build scripts manually.
 
-- **macOS:** `~/Library/Application Support/dynamic-story-scaffold/story-scaffold.sqlite3`
-- **Linux / XDG Unix:** `$XDG_DATA_HOME/dynamic-story-scaffold/story-scaffold.sqlite3`
-- **Windows:** the user's local application-data directory under
-  `dynamic-story-scaffold\\story-scaffold.sqlite3`
+By default DSS is installed under:
 
-Inspect the runtime location with:
+```text
+~/.local/apps/dss/
+├── current -> releases/<active-release>/
+└── releases/
+    └── <active-release>/.venv/
+```
+
+and exposes:
+
+```text
+~/.local/bin/dss
+~/.local/bin/dss-maintain
+```
+
+`dss-maintain` exists for the installer and technical-support work. It is not
+part of the normal application workflow.
+
+### Runtime state
+
+Mutable application state is separate from the source checkout and installed
+program. On macOS it normally lives under:
+
+```text
+~/Library/Application Support/dynamic-story-scaffold/
+```
+
+Inspect the actual location with:
 
 ```bash
 dss paths
 ```
 
-For CI, portable installs, or managed deployments,
-`DYNAMIC_STORY_SCAFFOLD_DATA_DIR` overrides the application-data directory.
+For managed/test installations, `DSS_INSTALL_ROOT`, `DSS_BIN_DIR`, and
+`DYNAMIC_STORY_SCAFFOLD_DATA_DIR` can override the default locations.
 
-The source checkout, distribution artifacts, installed executables, and mutable
-runtime state are separate contexts by design.
+### Development/build internals
+
+Repository developers and automation may use Hatch and the lower-level
+maintenance command directly. Those commands are implementation details behind
+`scripts/install.sh`, not production installation instructions.
 
 ## Scene YAML
 

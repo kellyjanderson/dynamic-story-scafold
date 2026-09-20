@@ -60,6 +60,22 @@ Repository work uses Hatch, pytest, scripts, and other source-tree tooling.
 - Build provenance belongs with distribution artifacts, not in the application database.
 - Repository tooling may depend on development-only packages that are not runtime dependencies.
 
+### Production installation contract
+
+The production/user installation path is one command from a current source
+checkout:
+
+```bash
+./scripts/install.sh
+```
+
+That installer owns qualification, packaging, isolated environment creation,
+wheel installation, runtime-state setup/migration, and command exposure.
+
+Do not document Hatch, pip, venv, Alembic, or `dss-maintain` as required
+steps for normal users. Those are implementation/support details behind the
+installer.
+
 ### Installer/maintenance context
 
 Installed-state setup and schema migration belong to `dss-maintain`.
