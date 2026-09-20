@@ -51,7 +51,7 @@
       "argv": [
         "/bin/sh",
         "-lc",
-        "set -eu; tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; export DSS_INSTALL_ROOT=\"$tmp/app\" DSS_BIN_DIR=\"$tmp/bin\" DYNAMIC_STORY_SCAFFOLD_DATA_DIR=\"$tmp/data\"; /bin/sh scripts/install.sh; \"$tmp/bin/dss\" --help >/dev/null; \"$tmp/bin/dss-maintain\" db status --json"
+        "set -eu; tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; export DSS_INSTALL_ROOT=\"$tmp/app\" DSS_BIN_DIR=\"$tmp/bin\" DYNAMIC_STORY_SCAFFOLD_DATA_DIR=\"$tmp/data\"; ./scripts/install.sh; \"$tmp/bin/dss\" --help >/dev/null; \"$tmp/bin/dss-maintain\" db status --json"
       ],
       "timeout_seconds": 600
     },
