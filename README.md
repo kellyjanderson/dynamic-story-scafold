@@ -62,7 +62,10 @@ A normal user should **not** need to invoke Hatch, pip, a venv, Alembic,
 By default DSS is installed under:
 
 ```text
-~/.local/apps/dss/.venv/
+~/.local/apps/dss/
+├── current -> releases/<active-release>/
+└── releases/
+    └── <active-release>/.venv/
 ```
 
 and exposes:
