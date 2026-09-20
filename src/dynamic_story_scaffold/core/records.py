@@ -245,6 +245,7 @@ class ActionResolution:
     disturbances: DisturbanceSet = field(default_factory=DisturbanceSet)
     actor_updates: tuple[ActorUpdate, ...] = ()
     explanation: str | None = None
+    audit: Mapping[str, Any] = field(default_factory=dict)
     span: TimeSpan = field(default_factory=lambda: TimeSpan.instant(0.0))
 
     @property
