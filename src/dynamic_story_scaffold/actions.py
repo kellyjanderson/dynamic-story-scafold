@@ -230,6 +230,8 @@ def _ability_legal(
 
 
 def _legal(candidate: ActionCandidate, actor_state: Mapping[str, Any]) -> bool:
+    if float(actor_state.get("health", 1.0)) <= 0.0:
+        return False
     if candidate.destination is not None and actor_state.get("position") is None:
         return False
     return True
