@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import copy
+import hashlib
+import json
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Mapping
@@ -26,6 +29,32 @@ class Outcome(StrEnum):
     SUCCESS = "success"
     STRONG_SUCCESS = "strong_success"
     CRITICAL_SUCCESS = "critical_success"
+
+
+@dataclass(frozen=True, slots=True)
+class WorldSnapshot:
+    """Detached, plain-data representation of canonical world state."""
+
+    data: Mapping[str, Any]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "data", copy.deepcopy(dict(self.data)))
+
+    @classmethod
+    def from_data(cls, data: Mapping[str, Any]) -> "WorldSnapshot":
+        return cls(data)
+
+    def to_data(self) -> dict[str, Any]:
+        return copy.deepcopy(dict(self.data))
+
+    def digest(self) -> str:
+        payload = json.dumps(
+            self.data,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,6 +1,7 @@
 """Shared domain primitives used across simulation layers."""
 
 from .effects import Effect, EffectStacking
+from .identity import BranchId, CheckpointId, RoundId, RunContext, RunId
 from .interfaces import ActionResolver, IntentProvider, PerceptionProvider
 from .randomness import RandomStreams
 from .records import (
@@ -16,6 +17,7 @@ from .records import (
     TickRecord,
     WorldEvent,
     WorldForcing,
+    WorldSnapshot,
 )
 from .refs import ComponentRef, EntityKind, EntityRef, TargetRef
 from .scoring import ScoreBreakdown, ScoredOption, ScoreTerm
@@ -28,6 +30,8 @@ __all__ = [
     "ActionResolution",
     "ActorUpdate",
     "ActionResolver",
+    "BranchId",
+    "CheckpointId",
     "ComponentChange",
     "ComponentRef",
     "DisturbanceSet",
@@ -43,7 +47,10 @@ __all__ = [
     "PerceptionProvider",
     "Position",
     "RandomStreams",
+    "RoundId",
     "RoundRecord",
+    "RunContext",
+    "RunId",
     "ScoreBreakdown",
     "ScoredOption",
     "ScoreTerm",
@@ -53,4 +60,5 @@ __all__ = [
     "TickRecord",
     "WorldEvent",
     "WorldForcing",
+    "WorldSnapshot",
 ]

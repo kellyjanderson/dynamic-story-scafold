@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from secrets import randbits
 from typing import Iterable, Mapping
 
+from .core.identity import RunContext
 from .core.randomness import RandomStreams
-from .core.records import ComponentChange, DisturbanceSet, TickRecord
+from .core.records import ComponentChange, DisturbanceSet, TickRecord, WorldSnapshot
 from .core.refs import ComponentRef
 from .core.time import TimeSpan
 from .dynamics import evolve_continuous
@@ -40,8 +40,14 @@ class Simulation:
     ) -> None:
         self.scene = scene
         self.state = state if state is not None else WorldState.from_scene(scene)
-        effective_seed = scene.simulation.seed if seed is None else seed
-        self.seed = randbits(64) if effective_seed is None else int(effective_seed)
+        self.run_context = RunContext.create(
+            scene_id=scene.setting.name,
+            scene_revision=scene.version,
+            scene_seed=scene.simulation.seed,
+            seed=seed,
+        )
+        self.seed = self.run_context.root_seed
+        self.initial_snapshot: WorldSnapshot = self.state.to_snapshot()
         self.random = RandomStreams(self.seed)
         # Backward-compatible stream for callers that used Simulation.rng.
         # Environment evolution never consumes this stream.
