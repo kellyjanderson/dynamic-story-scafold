@@ -35,5 +35,5 @@ def test_db_status_reports_initialized_database(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["revision"] == "0001"
+    assert payload["revision"] == "0002"
     assert payload["installation_count"] == 1
