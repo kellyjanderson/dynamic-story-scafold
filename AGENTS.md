@@ -57,7 +57,6 @@ DSS has three command contexts that must not be conflated.
 Repository work uses Hatch, pytest, scripts, and other source-tree tooling.
 
 - Build/package/test commands must not invoke the user-facing `dss` CLI.
-- Build provenance belongs with distribution artifacts, not in the application database.
 - Repository tooling may depend on development-only packages that are not runtime dependencies.
 
 ### Production installation contract
