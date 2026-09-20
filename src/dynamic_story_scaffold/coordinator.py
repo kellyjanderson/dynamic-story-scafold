@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from .arbitration import ArbitrationAudit, arbitrate_proposals
 from .core import (
     ActionIntent,
     ActionResolution,
@@ -22,6 +23,8 @@ from .core import (
     WorkBudget,
     WorldSnapshot,
 )
+from .core.identity import OperationId
+from .core.proposals import ActionProposal
 from .simulation import Simulation
 from .state import WorldState
 
@@ -36,10 +39,17 @@ class RoundInProgressError(CoordinatorError):
 
 @dataclass(slots=True)
 class _ProposalState:
-    proposal_id: str
-    intent: ActionIntent
+    proposal: ActionProposal
     status: ProposalTerminalStatus | None = None
     detail: str | None = None
+
+    @property
+    def proposal_id(self) -> str:
+        return str(self.proposal.operation_id)
+
+    @property
+    def intent(self) -> ActionIntent:
+        return self.proposal.intent
 
     def audit(self) -> ProposalAudit:
         if self.status is None:
@@ -55,12 +65,7 @@ class _ProposalState:
 
 
 class RoundCoordinator:
-    """Single-writer round coordinator with explicit phase barriers.
-
-    MVP-02 deliberately implements only the execution skeleton. Perception,
-    action selection, arbitration, and resolution policy remain delegated to
-    optional providers. Canonical world state is replaced only at commit.
-    """
+    """Single-writer round coordinator with explicit phase barriers."""
 
     PHASE_ORDER = (
         CoordinatorPhase.SNAPSHOT,
@@ -102,12 +107,15 @@ class RoundCoordinator:
         self._active = True
         phases: list[CoordinatorPhase] = []
         proposals: list[_ProposalState] = []
+        proposed_inputs: list[ActionIntent | ActionProposal] = []
         round_id = RoundId.new()
         before = self.simulation.state.to_snapshot()
         candidate = WorldState.from_snapshot(before)
         perceptions: dict[str, tuple] = {}
         intents: list[ActionIntent] = []
         resolutions: list[ActionResolution] = []
+        arbitration_audits: tuple[ArbitrationAudit, ...] = ()
+        resolution_order: tuple[OperationId, ...] = ()
         committed = False
 
         try:
@@ -130,7 +138,7 @@ class RoundCoordinator:
             if self.intent_provider is not None:
                 for actor_id in sorted(candidate.actors):
                     actor = EntityRef(EntityKind.ACTOR, actor_id)
-                    intent = self.intent_provider.choose_intent(
+                    selected = self.intent_provider.choose_intent(
                         actor=actor,
                         world=before,
                         observations=perceptions.get(actor_id, ()),
@@ -138,31 +146,62 @@ class RoundCoordinator:
                             "intent", str(round_id), actor_id
                         ),
                     )
-                    intents.append(intent)
+                    if isinstance(selected, ActionProposal):
+                        proposed_inputs.append(selected)
+                        intents.append(selected.intent)
+                    else:
+                        proposed_inputs.append(selected)
+                        intents.append(selected)
 
             self._phase(phases, CoordinatorPhase.NORMALIZE_PROPOSALS)
-            for index, intent in enumerate(intents):
-                proposal = _ProposalState(
-                    proposal_id=f"{round_id}:{index}",
-                    intent=intent,
-                )
+            for index, selected in enumerate(proposed_inputs):
+                if isinstance(selected, ActionProposal):
+                    normalized = selected
+                else:
+                    normalized = ActionProposal(
+                        operation_id=OperationId(
+                            f"{round_id}:{selected.actor.kind.value}:{selected.actor.id}"
+                        ),
+                        intent=selected,
+                    )
+                proposal = _ProposalState(normalized)
                 if index >= self.work_budget.max_proposals:
                     proposal.status = ProposalTerminalStatus.OVERFLOWED
                     proposal.detail = "proposal budget exceeded"
+                elif normalized.causal_depth > self.work_budget.max_causal_depth:
+                    proposal.status = ProposalTerminalStatus.OVERFLOWED
+                    proposal.detail = "causal depth budget exceeded"
                 proposals.append(proposal)
 
             self._phase(phases, CoordinatorPhase.REACTION_ARBITRATION)
-            # MVP-02 has no arbitration policy yet. Every in-budget proposal is
-            # accepted into the resolver stage; later slices replace this rule.
-            for proposal in proposals:
-                if proposal.status is None:
-                    proposal.status = ProposalTerminalStatus.ACCEPTED
+            schedulable = tuple(
+                proposal.proposal for proposal in proposals if proposal.status is None
+            )
+            if schedulable:
+                arbitration = arbitrate_proposals(
+                    schedulable,
+                    snapshot=before,
+                    random_streams=self.simulation.random,
+                    round_id=str(round_id),
+                )
+                arbitration_audits = arbitration.audits
+                resolution_order = arbitration.resolution_order
+                states_by_id = {
+                    proposal.proposal.operation_id: proposal for proposal in proposals
+                }
+                for outcome in arbitration.outcomes:
+                    state = states_by_id[outcome.operation_id]
+                    state.status = outcome.status
+                    state.detail = outcome.detail
 
             self._phase(phases, CoordinatorPhase.RESOLVE)
+            by_operation = {
+                proposal.proposal.operation_id: proposal for proposal in proposals
+            }
             accepted = [
-                proposal
-                for proposal in proposals
-                if proposal.status is ProposalTerminalStatus.ACCEPTED
+                by_operation[operation]
+                for operation in resolution_order
+                if by_operation[operation].status is ProposalTerminalStatus.ACCEPTED
             ]
             if len(accepted) > self.work_budget.max_resolutions:
                 for proposal in accepted[self.work_budget.max_resolutions :]:
@@ -198,9 +237,6 @@ class RoundCoordinator:
             for update in actor_updates:
                 candidate.apply_actor_update(update)
 
-            # Advance environment/time on the detached candidate. Reuse the
-            # simulation's deterministic tick implementation without exposing
-            # canonical mutable state to providers.
             candidate_simulation = Simulation(
                 self.simulation.scene,
                 state=candidate,
@@ -224,6 +260,9 @@ class RoundCoordinator:
                 state_before_digest=before.digest(),
                 state_after_digest=after.digest(),
                 committed=True,
+                arbitrations=tuple(
+                    self._arbitration_data(audit) for audit in arbitration_audits
+                ),
             )
             record = RoundRecord(
                 round_number=self.simulation.state.tick,
@@ -242,8 +281,6 @@ class RoundCoordinator:
             self.records.append(record)
             return record
         except Exception:
-            # Canonical state has not been replaced until COMMIT. If RECORD were
-            # ever to fail after commit, do not lie about rollback semantics.
             if not committed:
                 assert self.simulation.state.to_snapshot().digest() == before.digest()
             raise
@@ -253,3 +290,30 @@ class RoundCoordinator:
     @staticmethod
     def _phase(phases: list[CoordinatorPhase], phase: CoordinatorPhase) -> None:
         phases.append(phase)
+
+    @staticmethod
+    def _arbitration_data(audit: ArbitrationAudit) -> Mapping[str, object]:
+        return {
+            "conflict_id": audit.conflict_id,
+            "rule": audit.rule.value,
+            "candidate_ids": tuple(str(item) for item in audit.candidate_ids),
+            "selected_ids": tuple(str(item) for item in audit.selected_ids),
+            "outcomes": tuple(
+                {
+                    "operation_id": str(outcome.operation_id),
+                    "status": outcome.status.value,
+                    "detail": outcome.detail,
+                }
+                for outcome in audit.outcomes
+            ),
+            "stochastic_rule": audit.stochastic_rule,
+            "weights": tuple((str(item), weight) for item, weight in audit.weights),
+            "modifiers": tuple(
+                (str(item), modifier) for item, modifier in audit.modifiers
+            ),
+            "semantic_stream_key": audit.semantic_stream_key,
+            "sampled_value": audit.sampled_value,
+            "chosen_result": (
+                None if audit.chosen_result is None else str(audit.chosen_result)
+            ),
+        }
