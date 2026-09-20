@@ -142,7 +142,7 @@ class RoundCoordinator:
                     actor = EntityRef(EntityKind.ACTOR, actor_id)
                     observations = self.perception_provider.perceive(
                         actor=actor,
-                        world=before,
+                        world=WorldSnapshot.from_data(before.to_data()),
                         rng=self.simulation.random.stream(
                             "perception", str(round_id), actor_id
                         ),
@@ -155,7 +155,7 @@ class RoundCoordinator:
                     actor = EntityRef(EntityKind.ACTOR, actor_id)
                     selected = self.intent_provider.choose_intent(
                         actor=actor,
-                        world=before,
+                        world=WorldSnapshot.from_data(before.to_data()),
                         observations=perceptions.get(actor_id, ()),
                         rng=self.simulation.random.stream(
                             "intent", str(round_id), actor_id
@@ -222,7 +222,7 @@ class RoundCoordinator:
             reaction_result = process_reaction_windows(
                 accepted_primaries,
                 provider=self.reaction_provider,
-                snapshot=before,
+                snapshot=WorldSnapshot.from_data(before.to_data()),
                 random_streams=self.simulation.random,
                 round_id=str(round_id),
                 budget=self.work_budget,
@@ -279,7 +279,7 @@ class RoundCoordinator:
                     try:
                         resolution = self.resolver.resolve(
                             intent=proposal.intent,
-                            world=before,
+                            world=WorldSnapshot.from_data(before.to_data()),
                             rng=self.simulation.random.stream(
                                 "resolution",
                                 str(round_id),
@@ -310,7 +310,7 @@ class RoundCoordinator:
 
             generation_result = CausalGenerationQueue(self.work_budget).process(
                 generation_items,
-                snapshot=before,
+                snapshot=WorldSnapshot.from_data(before.to_data()),
                 event_handler=self.event_handler,
                 effect_handler=self.effect_handler,
             )
