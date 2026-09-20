@@ -69,12 +69,14 @@ checkout:
 ./scripts/install.sh
 ```
 
-That installer owns qualification, packaging, isolated environment creation,
-wheel installation, runtime-state setup/migration, and command exposure.
+That installer delegates package build/environment/command exposure to pipx,
+using the project's standard PEP 517/Hatchling metadata, then performs
+runtime-state setup.
 
-Do not document Hatch, pip, venv, Alembic, or `dss-maintain` as required
-steps for normal users. Those are implementation/support details behind the
-installer.
+Do not reimplement virtual-environment, package-installation, application
+exposure, or build-front-end behavior in DSS scripts. Use established packaging
+tools. Do not document Hatch, pip, venv, Alembic, or `dss-maintain` as
+required steps for normal users.
 
 ### Installer/maintenance context
 
