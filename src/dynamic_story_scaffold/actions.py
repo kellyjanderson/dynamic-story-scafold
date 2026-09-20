@@ -173,7 +173,7 @@ def _targets_for(
     targeting = str(ability.mechanics.get("targeting", "none"))
     if targeting in {"none", "self"}:
         return (actor,) if targeting == "self" else (None,)
-    if targeting in {"water_volume", "region", "environment"}:
+    if targeting in {"water_volume", "region", "environment", "flow_region"}:
         return (EntityRef(EntityKind.ENVIRONMENT, "world"),)
     if targeting in {"terrain", "terrain_region"}:
         return (EntityRef(EntityKind.TERRAIN, "local"),)
@@ -185,6 +185,8 @@ def _targets_for(
         "enemy",
         "object_or_creature",
         "visible_actor",
+        "vulnerable_seam",
+        "contact",
     }:
         actors = tuple(
             observation.subject
