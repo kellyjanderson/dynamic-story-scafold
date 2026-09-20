@@ -26,12 +26,10 @@ def test_runtime_cli_exposes_paths_without_initializing_database(
 
 
 def test_runtime_cli_does_not_expose_install_or_build_commands() -> None:
-    help_result = runner.invoke(app, ["--help"])
-
-    assert help_result.exit_code == 0
-    assert "install" not in help_result.output
-    assert "builds" not in help_result.output
-    assert "db" not in help_result.output
+    for command in ("install", "builds", "db"):
+        result = runner.invoke(app, [command])
+        assert result.exit_code != 0
+        assert "no such command" in result.output.lower()
 
 
 def test_runtime_command_requires_prepared_application_state(tmp_path: Path) -> None:
