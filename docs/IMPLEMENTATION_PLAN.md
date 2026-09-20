@@ -1275,7 +1275,6 @@ Use:
 The database should eventually persist:
 
 - installations
-- build history
 - projects/campaigns
 - scene definitions
 - simulation runs
@@ -1310,6 +1309,19 @@ Round persistence is part of the coordinator commit boundary:
 
 Generic tooling should remain delegated to mature packages.
 
+Execution contexts are intentionally separate:
+
+1. **repository/build** — Hatch, pytest, source-tree scripts, distribution artifacts;
+2. **installer/maintenance** — `dss-maintain`, including application-state setup
+   and explicit schema migration for installation/technical support;
+3. **runtime application** — `dss`, which consumes already-prepared application
+   state and never runs migrations.
+
+Repository/build tooling must not invoke `dss` to build, install, migrate, or
+qualify itself. Runtime code must not assume a Git checkout, Hatch environment,
+`dist/` directory, or build metadata exists. Build provenance belongs beside
+the distribution artifacts rather than in the application database.
+
 Current choices:
 
 - Hatch/Hatchling — environment/task/build/package management
@@ -1318,7 +1330,7 @@ Current choices:
 - SQLAlchemy — persistence
 - Alembic — migrations
 - platformdirs — application-data paths
-- GitPython — Git metadata
+- GitPython — repository/build metadata only; development dependency, not runtime
 - PyYAML — scene input
 
 Before implementing generic tooling in DSS, first determine whether a mature package already provides it.
