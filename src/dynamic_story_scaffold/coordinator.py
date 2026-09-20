@@ -25,6 +25,13 @@ from .core import (
 )
 from .core.identity import OperationId
 from .core.proposals import ActionProposal
+from .effect_runtime import apply_effects
+from .events import (
+    CausalGenerationQueue,
+    GenerationHandler,
+    generation_items_for_disturbances,
+)
+from .reactions import ReactionProvider, process_reaction_windows
 from .simulation import Simulation
 from .state import WorldState
 
@@ -86,12 +93,18 @@ class RoundCoordinator:
         perception_provider: PerceptionProvider | None = None,
         intent_provider: IntentProvider | None = None,
         resolver: ActionResolver | None = None,
+        reaction_provider: ReactionProvider | None = None,
+        event_handler: GenerationHandler | None = None,
+        effect_handler: GenerationHandler | None = None,
         work_budget: WorkBudget | None = None,
     ) -> None:
         self.simulation = simulation
         self.perception_provider = perception_provider
         self.intent_provider = intent_provider
         self.resolver = resolver
+        self.reaction_provider = reaction_provider
+        self.event_handler = event_handler
+        self.effect_handler = effect_handler
         self.work_budget = work_budget or WorkBudget()
         self._active = False
         self.records: list[RoundRecord] = []
@@ -116,6 +129,8 @@ class RoundCoordinator:
         resolutions: list[ActionResolution] = []
         arbitration_audits: tuple[ArbitrationAudit, ...] = ()
         resolution_order: tuple[OperationId, ...] = ()
+        reaction_audits = ()
+        generation_audits = ()
         committed = False
 
         try:
@@ -194,6 +209,50 @@ class RoundCoordinator:
                     state.status = outcome.status
                     state.detail = outcome.detail
 
+            accepted_primaries = tuple(
+                proposal.proposal
+                for proposal in proposals
+                if proposal.status is ProposalTerminalStatus.ACCEPTED
+            )
+            reaction_result = process_reaction_windows(
+                accepted_primaries,
+                provider=self.reaction_provider,
+                snapshot=before,
+                random_streams=self.simulation.random,
+                round_id=str(round_id),
+                budget=self.work_budget,
+            )
+            reaction_audits = reaction_result.audits
+            arbitration_audits = (*arbitration_audits, *reaction_result.arbitrations)
+            states_by_id = {
+                proposal.proposal.operation_id: proposal for proposal in proposals
+            }
+            for normalized in reaction_result.proposals:
+                state = states_by_id.get(normalized.operation_id)
+                status = reaction_result.statuses.get(normalized.operation_id)
+                if state is None:
+                    state = _ProposalState(
+                        normalized,
+                        status=status,
+                        detail="reaction proposal",
+                    )
+                    proposals.append(state)
+                    states_by_id[normalized.operation_id] = state
+                else:
+                    state.proposal = normalized
+                    if status is not None:
+                        state.status = status
+            resolution_order = tuple(
+                operation
+                for operation in resolution_order
+                if states_by_id[operation].status is ProposalTerminalStatus.ACCEPTED
+            ) + tuple(
+                proposal.operation_id
+                for proposal in reaction_result.reactions
+                if reaction_result.statuses.get(proposal.operation_id)
+                is ProposalTerminalStatus.ACCEPTED
+            )
+
             self._phase(phases, CoordinatorPhase.RESOLVE)
             by_operation = {
                 proposal.proposal.operation_id: proposal for proposal in proposals
@@ -209,6 +268,7 @@ class RoundCoordinator:
                     proposal.detail = "resolution budget exceeded"
                 accepted = accepted[: self.work_budget.max_resolutions]
 
+            resolved_pairs: list[tuple[_ProposalState, ActionResolution]] = []
             if self.resolver is not None:
                 for proposal in accepted:
                     try:
@@ -226,16 +286,57 @@ class RoundCoordinator:
                         proposal.detail = "resolver raised before commit"
                         raise
                     resolutions.append(resolution)
+                    resolved_pairs.append((proposal, resolution))
 
             self._phase(phases, CoordinatorPhase.COLLECT_CONSEQUENCES)
-            disturbances = DisturbanceSet()
+            forcing = []
             actor_updates = []
-            for resolution in resolutions:
-                disturbances = disturbances.merged(resolution.disturbances)
+            generation_items = []
+            for proposal, resolution in resolved_pairs:
+                forcing.extend(resolution.disturbances.forcing)
                 actor_updates.extend(resolution.actor_updates)
+                generation_items.extend(
+                    generation_items_for_disturbances(
+                        resolution.disturbances,
+                        parent_operation_id=proposal.proposal.operation_id,
+                        causal_depth=proposal.proposal.causal_depth + 1,
+                    )
+                )
+
+            generation_result = CausalGenerationQueue(self.work_budget).process(
+                generation_items,
+                snapshot=before,
+                event_handler=self.event_handler,
+                effect_handler=self.effect_handler,
+            )
+            generation_audits = generation_result.audits
+            disturbances = DisturbanceSet(
+                forcing=tuple(forcing) + generation_result.disturbances.forcing,
+                events=generation_result.disturbances.events,
+                effects=generation_result.disturbances.effects,
+            )
 
             for update in actor_updates:
                 candidate.apply_actor_update(update)
+
+            effects_by_actor: dict[str, list] = {}
+            for effect in disturbances.effects:
+                if (
+                    isinstance(effect.target, EntityRef)
+                    and effect.target.kind is EntityKind.ACTOR
+                    and effect.target.id in candidate.actors
+                ):
+                    effects_by_actor.setdefault(effect.target.id, []).append(effect)
+            now_seconds = float(before.to_data().get("elapsed_seconds", 0.0))
+            for actor_id, incoming_effects in effects_by_actor.items():
+                actor = candidate.actor(actor_id)
+                actor.active_effects = list(
+                    apply_effects(
+                        actor.active_effects,
+                        incoming_effects,
+                        now_seconds=now_seconds,
+                    )
+                )
 
             candidate_simulation = Simulation(
                 self.simulation.scene,
@@ -262,6 +363,12 @@ class RoundCoordinator:
                 committed=True,
                 arbitrations=tuple(
                     self._arbitration_data(audit) for audit in arbitration_audits
+                ),
+                reactions=tuple(
+                    self._reaction_data(audit) for audit in reaction_audits
+                ),
+                generations=tuple(
+                    self._generation_data(audit) for audit in generation_audits
                 ),
             )
             record = RoundRecord(
@@ -290,6 +397,34 @@ class RoundCoordinator:
     @staticmethod
     def _phase(phases: list[CoordinatorPhase], phase: CoordinatorPhase) -> None:
         phases.append(phase)
+
+    @staticmethod
+    def _reaction_data(audit) -> Mapping[str, object]:
+        data = {
+            "status": audit.status.value,
+            "reaction_depth": audit.reaction_depth,
+            "detail": audit.detail,
+        }
+        if hasattr(audit, "operation_id"):
+            data["operation_id"] = str(audit.operation_id)
+            data["target_operation_id"] = str(audit.target_operation_id)
+        else:
+            data["trigger_operation_id"] = str(audit.trigger_operation_id)
+        return data
+
+    @staticmethod
+    def _generation_data(audit) -> Mapping[str, object]:
+        return {
+            "operation_id": str(audit.operation_id),
+            "kind": audit.kind.value,
+            "status": audit.status.value,
+            "causal_parent": (
+                None if audit.causal_parent is None else str(audit.causal_parent)
+            ),
+            "causal_depth": audit.causal_depth,
+            "generation": audit.generation,
+            "detail": audit.detail,
+        }
 
     @staticmethod
     def _arbitration_data(audit: ArbitrationAudit) -> Mapping[str, object]:
