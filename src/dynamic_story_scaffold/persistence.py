@@ -19,6 +19,7 @@ class SimulationRunModel(Base):
     root_seed: Mapped[str] = mapped_column(String(20))
     scene_id: Mapped[str] = mapped_column(String(255))
     scene_revision: Mapped[int]
+    scene_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime]
 
 
@@ -98,6 +99,18 @@ class StoredRun:
 
 
 @dataclass(frozen=True, slots=True)
+class StoredRunContext:
+    run_id: str
+    branch_id: str
+    checkpoint_id: str
+    root_seed: int
+    scene_id: str
+    scene_revision: int
+    scene_data: Mapping[str, Any]
+    entropy_salt: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class StoredRound:
     round_id: str
     branch_id: str
@@ -111,6 +124,7 @@ class StoredRound:
 class ReplayInput:
     round: StoredRound
     input_snapshot: WorldSnapshot
+    context: StoredRunContext
 
 
 class PersistenceConflict(RuntimeError):
@@ -132,6 +146,8 @@ class SimulationPersistence:
         self,
         context: RunContext,
         initial_snapshot: WorldSnapshot,
+        *,
+        scene_data: Mapping[str, Any] | None = None,
     ) -> StoredRun:
         run_id = str(context.run_id)
         branch_id = str(context.root_branch_id)
@@ -154,6 +170,7 @@ class SimulationPersistence:
                     root_seed=str(context.root_seed),
                     scene_id=context.scene_id,
                     scene_revision=context.scene_revision,
+                    scene_data=None if scene_data is None else dict(scene_data),
                     created_at=utc_now(),
                 )
             )
@@ -251,6 +268,54 @@ class SimulationPersistence:
 
         return stored
 
+    def load_run_context(self, run_or_branch_id: str) -> StoredRunContext:
+        with Session(self.database.engine()) as session:
+            branch = session.get(TimelineBranchModel, run_or_branch_id)
+            if branch is None:
+                run = session.get(SimulationRunModel, run_or_branch_id)
+                if run is None:
+                    raise KeyError(f"unknown simulation run or branch {run_or_branch_id}")
+                branch = session.scalar(
+                    select(TimelineBranchModel).where(
+                        TimelineBranchModel.run_id == run.id,
+                        TimelineBranchModel.parent_branch_id.is_(None),
+                    )
+                )
+                if branch is None:
+                    raise PersistenceConflict(
+                        f"run {run.id} has no root timeline branch"
+                    )
+            else:
+                run = session.get(SimulationRunModel, branch.run_id)
+                if run is None:
+                    raise PersistenceConflict(
+                        f"branch {branch.id} references missing run {branch.run_id}"
+                    )
+
+            if branch.active_head_checkpoint_id is None:
+                raise PersistenceConflict(f"branch {branch.id} has no active checkpoint")
+            if run.scene_data is None:
+                raise PersistenceConflict(
+                    f"run {run.id} predates persisted scene replay data"
+                )
+            return StoredRunContext(
+                run_id=run.id,
+                branch_id=branch.id,
+                checkpoint_id=branch.active_head_checkpoint_id,
+                root_seed=int(run.root_seed),
+                scene_id=run.scene_id,
+                scene_revision=run.scene_revision,
+                scene_data=dict(run.scene_data or {}),
+                entropy_salt=branch.entropy_salt,
+            )
+
+    def load_round(self, round_id: str) -> StoredRound:
+        with Session(self.database.engine()) as session:
+            persisted_round = session.get(SimulationRoundModel, round_id)
+            if persisted_round is None:
+                raise KeyError(f"unknown simulation round {round_id}")
+            return self._stored_round(persisted_round)
+
     def branch_head(self, branch_id: str) -> str:
         with Session(self.database.engine()) as session:
             branch = session.get(TimelineBranchModel, branch_id)
@@ -278,9 +343,30 @@ class SimulationPersistence:
                 raise PersistenceConflict(
                     f"round {round_id} references a missing input checkpoint"
                 )
+            branch = session.get(TimelineBranchModel, persisted_round.branch_id)
+            if branch is None:
+                raise PersistenceConflict(
+                    f"round {round_id} references a missing branch"
+                )
+            run = session.get(SimulationRunModel, branch.run_id)
+            if run is None:
+                raise PersistenceConflict(
+                    f"round {round_id} references a missing run"
+                )
+            context = StoredRunContext(
+                run_id=run.id,
+                branch_id=branch.id,
+                checkpoint_id=branch.active_head_checkpoint_id or persisted_round.input_checkpoint_id,
+                root_seed=int(run.root_seed),
+                scene_id=run.scene_id,
+                scene_revision=run.scene_revision,
+                scene_data=dict(run.scene_data or {}),
+                entropy_salt=branch.entropy_salt,
+            )
             return ReplayInput(
                 round=self._stored_round(persisted_round),
                 input_snapshot=WorldSnapshot.from_data(checkpoint.snapshot),
+                context=context,
             )
 
     def round_count(self, branch_id: str) -> int:
