@@ -56,3 +56,42 @@ class ComponentRef:
 
 
 TargetRef: TypeAlias = EntityRef | ComponentRef
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class SubresourceKey:
+    """Structured subresource path used at subsystem boundaries."""
+
+    parts: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.parts:
+            raise ValueError("subresource key must contain at least one part")
+        for part in self.parts:
+            if not part or "." in part:
+                raise ValueError(
+                    "subresource key parts must be non-empty and must not contain '.'"
+                )
+
+    @classmethod
+    def of(cls, *parts: str) -> "SubresourceKey":
+        return cls(tuple(parts))
+
+    def __str__(self) -> str:
+        return "/".join(self.parts)
+
+
+@dataclass(frozen=True, slots=True)
+class StateRef:
+    """Typed reference to an entity/component or one of its subresources."""
+
+    target: TargetRef
+    subresource: SubresourceKey | None = None
+
+    def sort_key(self) -> tuple[str, str]:
+        return (str(self.target), "" if self.subresource is None else str(self.subresource))
+
+    def __str__(self) -> str:
+        if self.subresource is None:
+            return str(self.target)
+        return f"{self.target}/{self.subresource}"
