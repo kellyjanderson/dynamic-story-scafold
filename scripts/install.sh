@@ -20,7 +20,7 @@ trap cleanup 0 HUP INT TERM
 echo "==> Building and qualifying Dynamic Story Scaffold"
 (
   cd "$repo_root"
-  /bin/sh scripts/automation-hatch run build
+  ./scripts/build.sh
 )
 
 wheel=$(find "$repo_root/dist" -maxdepth 1 -type f -name '*.whl' -print | sort | tail -n 1)
