@@ -1,0 +1,59 @@
+{
+  "id": "mvp-simulation-loop",
+  "title": "Dynamic Story Scaffold MVP simulation loop",
+  "policy": {
+    "on_blocked": "stop"
+  },
+  "work_orders": [
+    {
+      "id": "mvp-01-run-lineage-snapshots",
+      "path": "project/WorkOrders/mvp-01-run-lineage-snapshots.md",
+      "branch": "feature/mvp-01-run-lineage-snapshots"
+    },
+    {
+      "id": "mvp-02-round-coordinator",
+      "path": "project/WorkOrders/mvp-02-round-coordinator.md",
+      "branch": "feature/mvp-02-round-coordinator"
+    },
+    {
+      "id": "mvp-03-dependencies-arbitration",
+      "path": "project/WorkOrders/mvp-03-dependencies-arbitration.md",
+      "branch": "feature/mvp-03-dependencies-arbitration"
+    },
+    {
+      "id": "mvp-04-baseline-perception",
+      "path": "project/WorkOrders/mvp-04-baseline-perception.md",
+      "branch": "feature/mvp-04-baseline-perception"
+    },
+    {
+      "id": "mvp-05-intent-selection",
+      "path": "project/WorkOrders/mvp-05-intent-selection.md",
+      "branch": "feature/mvp-05-intent-selection"
+    },
+    {
+      "id": "mvp-06-action-resolution",
+      "path": "project/WorkOrders/mvp-06-action-resolution.md",
+      "branch": "feature/mvp-06-action-resolution"
+    },
+    {
+      "id": "mvp-07-reactions-events-effects",
+      "path": "project/WorkOrders/mvp-07-reactions-events-effects.md",
+      "branch": "feature/mvp-07-reactions-events-effects"
+    },
+    {
+      "id": "mvp-08-atomic-round-commit",
+      "path": "project/WorkOrders/mvp-08-atomic-round-commit.md",
+      "branch": "feature/mvp-08-atomic-round-commit"
+    },
+    {
+      "id": "mvp-09-persistence",
+      "path": "project/WorkOrders/mvp-09-persistence.md",
+      "branch": "feature/mvp-09-persistence"
+    },
+    {
+      "id": "mvp-10-replay-cli",
+      "path": "project/WorkOrders/mvp-10-replay-cli.md",
+      "branch": "feature/mvp-10-replay-cli"
+    }
+  ]
+}
