@@ -171,6 +171,7 @@ def _parse_abilities(raw: Any, path: str) -> tuple[AbilityDefinition, ...]:
                     data.get("modifiers", {}),
                     f"{path}[{index}].modifiers",
                 ),
+                tags=tuple_of_strings(data.get("tags")),
                 visual_semantics=tuple_of_strings(data.get("visual_semantics")),
             )
         )
@@ -220,6 +221,9 @@ def _parse_characters(raw: Any) -> tuple[CharacterDefinition, ...]:
                 motivations=_float_mapping(
                     data.get("motivations", {}), f"{path}.motivations"
                 ),
+                priority_weights=_float_mapping(data.get("priority_weights", {}), f"{path}.priority_weights"),
+                quirk_weights=_float_mapping(data.get("quirk_weights", {}), f"{path}.quirk_weights"),
+                risk_tolerance=float(data.get("risk_tolerance", 0.5)),
                 quirks=tuple_of_strings(data.get("quirks")),
                 initial_state=dict(
                     _mapping(data.get("initial_state", {}), f"{path}.initial_state")
@@ -248,6 +252,9 @@ def _parse_creatures(raw: Any) -> tuple[CreatureDefinition, ...]:
                 motivations=_float_mapping(
                     data.get("motivations", {}), f"{path}.motivations"
                 ),
+                priority_weights=_float_mapping(data.get("priority_weights", {}), f"{path}.priority_weights"),
+                quirk_weights=_float_mapping(data.get("quirk_weights", {}), f"{path}.quirk_weights"),
+                risk_tolerance=float(data.get("risk_tolerance", 0.5)),
                 behaviors=tuple_of_strings(data.get("behaviors")),
                 initial_state=dict(
                     _mapping(data.get("initial_state", {}), f"{path}.initial_state")
@@ -288,6 +295,7 @@ def parse_scene(raw: Mapping[str, Any]) -> SceneDefinition:
                 None if setting_raw.get("scale") is None else str(setting_raw["scale"])
             ),
             objectives=tuple_of_strings(setting_raw.get("objectives")),
+            objective_weights=_float_mapping(setting_raw.get("objective_weights", {}), "setting.objective_weights"),
             tags=tuple_of_strings(setting_raw.get("tags")),
         ),
         environment=_parse_environment(data.get("environment", {})),

@@ -120,6 +120,7 @@ class SceneSetting:
     location_type: str | None = None
     scale: str | None = None
     objectives: tuple[str, ...] = ()
+    objective_weights: Mapping[str, float] = field(default_factory=dict)
     tags: tuple[str, ...] = ()
 
 
@@ -130,6 +131,9 @@ class ActorDefinition:
     species: str
     physical: Mapping[str, float] = field(default_factory=dict)
     motivations: Mapping[str, float] = field(default_factory=dict)
+    priority_weights: Mapping[str, float] = field(default_factory=dict)
+    quirk_weights: Mapping[str, float] = field(default_factory=dict)
+    risk_tolerance: float = 0.5
     initial_state: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -139,6 +143,10 @@ class ActorDefinition:
             raise SceneDefinitionError(f"actor {self.id!r} name must not be empty")
         if not self.species:
             raise SceneDefinitionError(f"actor {self.id!r} species must not be empty")
+        if not UNIT_INTERVAL.contains(self.risk_tolerance):
+            raise SceneDefinitionError(
+                f"actor {self.id!r} risk_tolerance must be between 0 and 1"
+            )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -155,6 +163,7 @@ class AbilityDefinition:
     description: str | None = None
     mechanics: Mapping[str, Any] = field(default_factory=dict)
     modifiers: Mapping[str, float] = field(default_factory=dict)
+    tags: tuple[str, ...] = ()
     visual_semantics: tuple[str, ...] = ()
 
 

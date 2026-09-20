@@ -10,6 +10,10 @@ setting:
   objectives:
     - protect the spillway
     - keep the beaver colony safe
+  objective_weights:
+    protect_dam: 0.9
+    protect_party: 0.7
+    defend: 0.5
   tags:
     - moonlit
     - flooded
@@ -167,6 +171,7 @@ roles:
     abilities:
       - name: Submerged Flank
         kind: maneuver
+        tags: [positioning, protect_party, self_preservation]
         mechanics:
           approach: submerged
           positional_advantage: 0.35
@@ -179,6 +184,7 @@ roles:
 
       - name: Scale Seam
         kind: attack
+        tags: [challenge_large_threat, protect_party]
         mechanics:
           targeting: vulnerable_seam
           damage_bias: precision
@@ -194,6 +200,7 @@ roles:
     abilities:
       - name: Hammerfall
         kind: attack
+        tags: [challenge_large_threat, protect_party]
         mechanics:
           targeting: contact
           momentum: heavy
@@ -211,6 +218,7 @@ roles:
     abilities:
       - name: Hold the Line
         kind: reaction
+        tags: [defend, protect_party, protect_dam]
         mechanics:
           intercepts: ally_threat
           redirects_force: true
@@ -226,6 +234,7 @@ roles:
     abilities:
       - name: Crosscurrent
         kind: spell
+        tags: [positioning, protect_party, understand_currents]
         mechanics:
           domain: hydrodynamic_control
           targeting: flow_region
@@ -246,6 +255,7 @@ roles:
     abilities:
       - name: Pressure Lattice
         kind: spell
+        tags: [observe, information, understand_unknown_threats, protect_party]
         mechanics:
           domain: pressure_sensing
           targeting: water_volume
@@ -265,6 +275,7 @@ roles:
     abilities:
       - name: Snag Line
         kind: control
+        tags: [positioning, protect_party, preserve_tools]
         mechanics:
           targeting: object_or_creature
           tether: true
@@ -296,6 +307,12 @@ characters:
       - overcommits when another otter is grabbed
       - prefers underwater approaches
       - collects polished brass objects
+    priority_weights:
+      positioning: 0.9
+      protect_party: 0.8
+    quirk_weights:
+      positioning: 0.25
+    risk_tolerance: 0.72
     initial_state:
       position: west_log
       posture: crouched
@@ -319,6 +336,12 @@ characters:
       challenge_large_threat: 0.84
     quirks:
       - commits to momentum once moving
+    priority_weights:
+      challenge_large_threat: 0.95
+      protect_party: 0.7
+    quirk_weights:
+      challenge_large_threat: 0.2
+    risk_tolerance: 0.82
     initial_state:
       position: west_stump
       posture: ready
@@ -341,6 +364,13 @@ characters:
       protect_dam: 0.94
     quirks:
       - refuses to yield ground while an ally is behind the shield
+    priority_weights:
+      defend: 1.0
+      protect_party: 1.0
+      protect_dam: 0.95
+    quirk_weights:
+      defend: 0.25
+    risk_tolerance: 0.45
     initial_state:
       position: center_shallows
       posture: braced
@@ -363,6 +393,13 @@ characters:
       understand_currents: 0.79
     quirks:
       - prefers indirect force over direct attacks
+    priority_weights:
+      positioning: 1.0
+      protect_party: 0.8
+      understand_currents: 0.85
+    quirk_weights:
+      positioning: 0.2
+    risk_tolerance: 0.55
     initial_state:
       position: east_shallows
       posture: observing
@@ -385,6 +422,13 @@ characters:
       understand_unknown_threats: 0.96
     quirks:
       - pauses when pressure patterns contradict sight
+    priority_weights:
+      observe: 1.0
+      information: 1.0
+      understand_unknown_threats: 0.95
+    quirk_weights:
+      observe: 0.15
+    risk_tolerance: 0.30
     initial_state:
       position: center_pool
       posture: sensing
@@ -407,6 +451,13 @@ characters:
       preserve_tools: 0.64
     quirks:
       - keeps one paw free for salvage whenever possible
+    priority_weights:
+      positioning: 0.75
+      protect_party: 0.8
+      preserve_tools: 0.9
+    quirk_weights:
+      preserve_tools: 0.2
+    risk_tolerance: 0.50
     initial_state:
       position: east_bank
       posture: equipped
