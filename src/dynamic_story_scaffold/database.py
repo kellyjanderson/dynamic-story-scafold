@@ -86,15 +86,17 @@ class Database:
             with session.begin():
                 yield session
 
-    def _alembic_config(self) -> Config:
+    @contextmanager
+    def _alembic_config(self) -> Iterator[Config]:
         migration_root = resources.files("dynamic_story_scaffold").joinpath("migrations")
         with resources.as_file(migration_root) as script_location:
             config = Config()
             config.set_main_option("script_location", str(script_location))
-            return config
+            yield config
 
     def expected_revision(self) -> str:
-        head = ScriptDirectory.from_config(self._alembic_config()).get_current_head()
+        with self._alembic_config() as config:
+            head = ScriptDirectory.from_config(config).get_current_head()
         if not head:
             raise RuntimeError("DSS migration package has no Alembic head revision")
         return head
@@ -124,10 +126,10 @@ class Database:
         """Installer/support operation: upgrade the application database to head."""
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        config = self._alembic_config()
-        with self.engine().connect() as connection:
-            config.attributes["connection"] = connection
-            command.upgrade(config, "head")
+        with self._alembic_config() as config:
+            with self.engine().connect() as connection:
+                config.attributes["connection"] = connection
+                command.upgrade(config, "head")
 
     def setup(self, *, package_version: str) -> DatabaseStatus:
         """Installer operation: upgrade schema and record the installed package."""
