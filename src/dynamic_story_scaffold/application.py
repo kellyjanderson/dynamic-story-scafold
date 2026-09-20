@@ -35,7 +35,7 @@ class SimulationApplication:
 
     def __init__(self, database: Database) -> None:
         self.database = database
-        self.database.migrate()
+        self.database.require_current_schema()
         self.persistence = SimulationPersistence(database)
 
     def validate_scene(self, path: str | Path) -> dict[str, Any]:
