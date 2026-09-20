@@ -227,8 +227,8 @@ hatch run test
 For slices that alter packaging or installation boundaries:
 
 ```bash
-hatch run build
-hatch run package
+hatch run test
+hatch build -c
 ```
 
 Installed-runtime qualification must install the built wheel into a separate

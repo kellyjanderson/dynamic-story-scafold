@@ -46,33 +46,29 @@ dss run start ...
 dss run advance ...
 ```
 
-The installer owns all implementation details required to turn the checked-out
-source into a usable installation:
+The installer delegates Python application installation to **pipx**. pipx uses
+the project's PEP 517/Hatchling metadata to build the package, creates and
+manages the isolated application environment, and exposes the declared command
+entry points. The DSS installer then performs application-state setup.
 
-- repository qualification
-- package build
-- wheel installation
-- isolated application environment creation/update
-- application-state setup/migration
-- command exposure under `~/.local/bin`
+On macOS, if pipx is not already present and Homebrew is available,
+`scripts/install.sh` installs pipx through Homebrew.
 
 A normal user should **not** need to invoke Hatch, pip, a venv, Alembic,
 `dss-maintain`, or build scripts manually.
 
-By default DSS is installed under:
+pipx owns the physical application environment and command-link locations.
+Inspect them with:
 
-```text
-~/.local/apps/dss/
-├── current -> releases/<active-release>/
-└── releases/
-    └── <active-release>/.venv/
+```bash
+pipx environment
 ```
 
-and exposes:
+The installed package exposes both:
 
 ```text
-~/.local/bin/dss
-~/.local/bin/dss-maintain
+dss
+dss-maintain
 ```
 
 `dss-maintain` exists for the installer and technical-support work. It is not
@@ -93,8 +89,9 @@ Inspect the actual location with:
 dss paths
 ```
 
-For managed/test installations, `DSS_INSTALL_ROOT`, `DSS_BIN_DIR`, and
-`DYNAMIC_STORY_SCAFFOLD_DATA_DIR` can override the default locations.
+For managed/test installations, pipx's standard `PIPX_HOME` and
+`PIPX_BIN_DIR` variables control application installation locations, while
+`DYNAMIC_STORY_SCAFFOLD_DATA_DIR` controls DSS runtime state.
 
 ### Development/build internals
 
