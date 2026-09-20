@@ -53,6 +53,28 @@ class RoundId:
         return str(self.value)
 
 
+@dataclass(frozen=True, slots=True, order=True)
+class OperationId:
+    """Stable proposal/event operation identity.
+
+    Callers may use semantic IDs for replay fixtures or generate opaque durable
+    UUID identities where no authored semantic identity exists.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if not self.value:
+            raise ValueError("operation id must not be empty")
+
+    @classmethod
+    def new(cls) -> "OperationId":
+        return cls(str(uuid4()))
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclass(frozen=True, slots=True)
 class RunContext:
     run_id: RunId
