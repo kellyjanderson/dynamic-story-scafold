@@ -10,30 +10,45 @@ from dynamic_story_scaffold.cli import app
 runner = CliRunner()
 
 
-def test_install_command_initializes_database(tmp_path: Path) -> None:
-    db_path = tmp_path / "state" / "story.sqlite3"
-    result = runner.invoke(
-        app,
-        ["install", "--database", str(db_path), "--json"],
-    )
+def test_runtime_cli_exposes_paths_without_initializing_database(
+    monkeypatch, tmp_path: Path
+) -> None:
+    data_dir = tmp_path / "runtime-data"
+    monkeypatch.setenv("DYNAMIC_STORY_SCAFFOLD_DATA_DIR", str(data_dir))
+
+    result = runner.invoke(app, ["paths", "--json"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["installed"] is True
-    assert payload["revision"] == "0003"
-    assert Path(payload["database_path"]) == db_path
-    assert db_path.exists()
+    assert Path(payload["data_directory"]) == data_dir
+    assert Path(payload["database_path"]) == data_dir / "story-scaffold.sqlite3"
+    assert not data_dir.exists()
 
 
-def test_db_status_reports_initialized_database(tmp_path: Path) -> None:
-    db_path = tmp_path / "story.sqlite3"
-    assert runner.invoke(app, ["install", "--database", str(db_path)]).exit_code == 0
+def test_runtime_cli_does_not_expose_install_or_build_commands() -> None:
+    help_result = runner.invoke(app, ["--help"])
+
+    assert help_result.exit_code == 0
+    assert "install" not in help_result.output
+    assert "builds" not in help_result.output
+    assert "db" not in help_result.output
+
+
+def test_runtime_command_requires_prepared_application_state(tmp_path: Path) -> None:
+    db_path = tmp_path / "missing.sqlite3"
 
     result = runner.invoke(
         app,
-        ["db", "status", "--database", str(db_path), "--json"],
+        [
+            "run",
+            "show",
+            "not-a-real-id",
+            "--database",
+            str(db_path),
+            "--json",
+        ],
     )
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["revision"] == "0003"
-    assert payload["installation_count"] == 1
+
+    assert result.exit_code == 2
+    assert "dss-maintain setup" in result.output
+    assert not db_path.exists()
