@@ -20,7 +20,7 @@ def test_install_command_initializes_database(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["installed"] is True
-    assert payload["revision"] == "0001"
+    assert payload["revision"] == "0002"
     assert Path(payload["database_path"]) == db_path
     assert db_path.exists()
 
