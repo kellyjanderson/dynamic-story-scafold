@@ -17,6 +17,7 @@ runner = CliRunner()
 @pytest.mark.integration
 def test_application_start_advance_inspect_and_replay_is_idempotent(tmp_path: Path) -> None:
     db = Database(tmp_path / "story.sqlite3")
+    db.setup(package_version="test")
     service = SimulationApplication(db)
 
     validated = service.validate_scene(EXAMPLE)
@@ -55,6 +56,7 @@ def test_application_start_advance_inspect_and_replay_is_idempotent(tmp_path: Pa
 @pytest.mark.integration
 def test_cli_json_covers_complete_hollow_bank_round_and_replay(tmp_path: Path) -> None:
     db_path = tmp_path / "cli.sqlite3"
+    Database(db_path).setup(package_version="test")
 
     validated = runner.invoke(
         app,
@@ -126,6 +128,7 @@ def test_cli_json_covers_complete_hollow_bank_round_and_replay(tmp_path: Path) -
 @pytest.mark.integration
 def test_cli_unknown_ids_and_invalid_paths_fail_without_traceback(tmp_path: Path) -> None:
     db_path = tmp_path / "errors.sqlite3"
+    Database(db_path).setup(package_version="test")
 
     invalid_path = runner.invoke(
         app,
