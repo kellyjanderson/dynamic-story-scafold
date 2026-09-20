@@ -40,7 +40,7 @@ def _snapshot(tick: int, value: float) -> WorldSnapshot:
 
 def _store(tmp_path: Path) -> tuple[SimulationPersistence, RunContext]:
     database = Database(tmp_path / "simulation.sqlite3")
-    database.migrate()
+    database.upgrade_schema()
     return SimulationPersistence(database), _context()
 
 
@@ -172,7 +172,7 @@ def test_replay_loads_input_checkpoint_and_round_audit(tmp_path: Path) -> None:
 @pytest.mark.integration
 def test_migration_upgrades_fresh_database(tmp_path: Path) -> None:
     database = Database(tmp_path / f"{uuid4()}.sqlite3")
-    database.migrate()
+    database.upgrade_schema()
 
     tables = set(inspect(database.engine()).get_table_names())
 
@@ -182,4 +182,4 @@ def test_migration_upgrades_fresh_database(tmp_path: Path) -> None:
         "checkpoints",
         "simulation_rounds",
     } <= tables
-    assert database.status().revision == "0003"
+    assert database.status().revision == "0004"
