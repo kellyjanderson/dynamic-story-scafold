@@ -28,72 +28,105 @@ This first implementation provides:
 
 The next layer should add perception, intent selection, action resolution, actor-state changes, and cinematic moment selection.
 
-## Build, package, and install
+## Source, build, installation, and runtime contexts
 
-Project tooling is delegated to established packages rather than implemented in DSS:
+DSS deliberately separates four execution contexts.
 
-- **Hatch/Hatchling**: development environments, task scripts, wheel/sdist packaging.
-- **pytest**: tests.
-- **Typer**: command-line interface.
-- **SQLAlchemy**: database persistence.
-- **Alembic**: schema migrations.
-- **platformdirs**: operating-system application-data locations.
-- **GitPython**: Git metadata for build records.
+### 1. Repository/development context
 
-Install Hatch once with your preferred tool manager, for example `pipx install hatch`, then use:
+The Git checkout contains source, tests, documentation, migration sources, and
+repository tooling. Hatch/Hatchling owns development environments and builds.
 
 ```bash
 hatch run test
 hatch run package
 hatch run build
-hatch run install
 ```
 
-- `test`: run the test suite.
-- `package`: build wheel + source distribution with Hatch and record their metadata in SQLite.
-- `build`: run tests, package, and record the successful artifacts.
-- `install`: package, record the artifacts, then run the DSS installer to create or migrate application state.
+- `test` runs the repository test suite.
+- `package` creates wheel/sdist artifacts and writes `dist/build-manifest.json`.
+- `build` runs tests and then packages.
 
-The installed application CLI exposes:
+Repository/build tooling must **not** invoke the application CLI to build,
+install, migrate, or qualify DSS.
+
+Build provenance is a distribution artifact, not application state. The build
+manifest records package version, Git commit/branch, artifact sizes, and SHA-256
+digests without touching the runtime database.
+
+### 2. Package installation context
+
+Install a built wheel with a package manager or eventual OS installer. For
+example:
 
 ```bash
-dss install
-dss paths
-dss db status
-dss builds record dist
-dss builds list
+python -m pip install dist/dynamic_story_scaffold-*.whl
 ```
+
+Package installation creates the executable entry points but does not silently
+initialize or migrate user application state.
+
+### 3. Installer / technical-support maintenance context
+
+The installed package provides a separate maintenance executable:
+
+```bash
+dss-maintain setup
+dss-maintain db status
+dss-maintain db migrate
+```
+
+`dss-maintain setup` is the normal post-install/upgrade setup operation. It
+creates or upgrades application state and records the installed package.
+
+`dss-maintain db migrate` is an explicit installer/support operation. Normal
+runtime execution never runs Alembic migrations.
+
+### 4. Runtime application context
+
+The user-facing application CLI is only:
+
+```bash
+dss
+```
+
+Normal commands include:
+
+```bash
+dss paths
+dss scene validate ...
+dss run start ...
+dss run advance ...
+dss run show ...
+dss round show ...
+dss run replay ...
+```
+
+The runtime application assumes setup has already been completed. If its
+database is missing or stale, it stops with a maintenance instruction instead
+of creating or migrating state.
 
 ### Platform-aware application data
 
-The SQLite database is application state, never package data. `platformdirs` selects the normal per-user location:
+Mutable application state is never stored in or inferred from the Git checkout.
+`platformdirs` selects the normal per-user location:
 
 - **macOS:** `~/Library/Application Support/dynamic-story-scaffold/story-scaffold.sqlite3`
-- **Linux / other XDG Unix:** `$XDG_DATA_HOME/dynamic-story-scaffold/story-scaffold.sqlite3`, normally `~/.local/share/dynamic-story-scaffold/story-scaffold.sqlite3`
-- **Windows:** the user's local application-data directory under `dynamic-story-scaffold\story-scaffold.sqlite3`
+- **Linux / XDG Unix:** `$XDG_DATA_HOME/dynamic-story-scaffold/story-scaffold.sqlite3`
+- **Windows:** the user's local application-data directory under
+  `dynamic-story-scaffold\\story-scaffold.sqlite3`
 
-Inspect the actual resolved path with:
+Inspect the runtime location with:
 
 ```bash
 dss paths
 ```
 
-For CI, portable installs, or managed deployments, `DYNAMIC_STORY_SCAFFOLD_DATA_DIR` overrides the application-data directory.
+For CI, portable installs, or managed deployments,
+`DYNAMIC_STORY_SCAFFOLD_DATA_DIR` overrides the application-data directory.
 
-The installer runs Alembic migrations to the latest revision and records the installed package version and platform.
-
-### Database-backed build history
-
-Hatch performs the actual build. DSS records only project-specific metadata after a successful package build:
-
-- package version
-- Git commit and branch
-- project root and output directory
-- wheel/sdist artifact type
-- artifact path and size
-- SHA-256 digest
-
-`dss builds list` queries that history.
+The source checkout, distribution artifacts, installed executables, and mutable
+runtime state are separate contexts by design.
 
 ## Scene YAML
 
@@ -273,10 +306,13 @@ A later cinematic layer may choose not to render overt magic at all if the physi
 
 ## Development
 
-Hatch owns the development environment. After installing Hatch, no project-specific development bootstrap script is required.
+Hatch owns the repository development environment.
 
 ```bash
 hatch run test
 hatch run build
-hatch run install
 ```
+
+Do not use the repository environment as the installed application. Installed
+package qualification must install the wheel into a separate environment and
+use `dss-maintain` before exercising `dss`.
