@@ -305,7 +305,7 @@ class SimulationPersistence:
                 root_seed=int(run.root_seed),
                 scene_id=run.scene_id,
                 scene_revision=run.scene_revision,
-                scene_data=dict(run.scene_data),
+                scene_data=dict(run.scene_data or {}),
                 entropy_salt=branch.entropy_salt,
             )
 
@@ -349,9 +349,9 @@ class SimulationPersistence:
                     f"round {round_id} references a missing branch"
                 )
             run = session.get(SimulationRunModel, branch.run_id)
-            if run is None or run.scene_data is None:
+            if run is None:
                 raise PersistenceConflict(
-                    f"round {round_id} has no persisted replay scene context"
+                    f"round {round_id} references a missing run"
                 )
             context = StoredRunContext(
                 run_id=run.id,
