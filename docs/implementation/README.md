@@ -86,8 +86,8 @@ check for an established package.
 
 Packages selected by this plan:
 
-- existing: PyYAML, SQLAlchemy, Alembic, Typer, platformdirs, GitPython,
-  Hatch/Hatchling, pytest
+- runtime/application: PyYAML, SQLAlchemy, Alembic, Typer, platformdirs
+- repository/build/development only: GitPython, Hatch/Hatchling, pytest
 - add for MVP: **networkx** for dependency graphs/SCC/topological operations
 - add for development tests: **Hypothesis** for bounded termination,
   idempotency, ordering, and replay properties
