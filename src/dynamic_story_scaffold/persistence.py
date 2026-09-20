@@ -360,7 +360,7 @@ class SimulationPersistence:
                 root_seed=int(run.root_seed),
                 scene_id=run.scene_id,
                 scene_revision=run.scene_revision,
-                scene_data=dict(run.scene_data),
+                scene_data=dict(run.scene_data or {}),
                 entropy_salt=branch.entropy_salt,
             )
             return ReplayInput(
