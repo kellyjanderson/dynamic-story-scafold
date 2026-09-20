@@ -113,7 +113,7 @@ class RoundCoordinator:
     def active(self) -> bool:
         return self._active
 
-    def advance_round(self) -> RoundRecord:
+    def advance_round(self, *, round_id: RoundId | None = None) -> RoundRecord:
         if self._active:
             raise RoundInProgressError("round advancement is already active")
 
@@ -121,7 +121,7 @@ class RoundCoordinator:
         phases: list[CoordinatorPhase] = []
         proposals: list[_ProposalState] = []
         proposed_inputs: list[ActionIntent | ActionProposal] = []
-        round_id = RoundId.new()
+        round_id = round_id or RoundId.new()
         before = self.simulation.state.to_snapshot()
         candidate = WorldState.from_snapshot(before)
         perceptions: dict[str, tuple] = {}
