@@ -30,6 +30,7 @@ EOF
 
 echo "==> Installing Dynamic Story Scaffold with pipx"
 run_pipx install --force "$repo_root"
+run_pipx ensurepath >/dev/null 2>&1 || true
 
 bin_dir=$(run_pipx environment --value PIPX_BIN_DIR)
 
@@ -41,4 +42,8 @@ echo "Dynamic Story Scaffold installed."
 echo "  app:         $bin_dir/dss"
 echo "  maintenance: $bin_dir/dss-maintain"
 echo
-echo "Run: dss --help"
+if command -v dss >/dev/null 2>&1; then
+  echo "Run: dss --help"
+else
+  echo "Restart your shell once so pipx's app directory is on PATH, then run: dss --help"
+fi
