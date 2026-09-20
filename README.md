@@ -98,9 +98,17 @@ For managed/test installations, `DSS_INSTALL_ROOT`, `DSS_BIN_DIR`, and
 
 ### Development/build internals
 
-Repository developers and automation may use Hatch and the lower-level
-maintenance command directly. Those commands are implementation details behind
-`scripts/install.sh`, not production installation instructions.
+Repository developers and automation use the repository wrappers:
+
+```bash
+./scripts/build.sh
+/bin/sh scripts/automation-hatch run pytest -q
+```
+
+`scripts/build.sh` owns test → package → build-manifest sequencing and must not
+invoke Hatch recursively from inside a Hatch environment. These commands are
+implementation details behind `scripts/install.sh`, not production installation
+instructions.
 
 ## Scene YAML
 
