@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from .arbitration import ArbitrationAudit, arbitrate_proposals
+from .atomic_commit import build_atomic_round_candidate
 from .core import (
     ActionIntent,
     ActionResolution,
@@ -25,7 +26,6 @@ from .core import (
 )
 from .core.identity import OperationId
 from .core.proposals import ActionProposal
-from .effect_runtime import apply_effects
 from .events import (
     CausalGenerationQueue,
     GenerationHandler,
@@ -321,40 +321,15 @@ class RoundCoordinator:
                 effects=generation_result.disturbances.effects,
             )
 
-            for update in actor_updates:
-                candidate.apply_actor_update(update)
-
-            effects_by_actor: dict[str, list] = {}
-            for effect in disturbances.effects:
-                if (
-                    isinstance(effect.target, EntityRef)
-                    and effect.target.kind is EntityKind.ACTOR
-                    and effect.target.id in candidate.actors
-                ):
-                    effects_by_actor.setdefault(effect.target.id, []).append(effect)
-            now_seconds = float(before.to_data().get("elapsed_seconds", 0.0))
-            for actor_id, incoming_effects in effects_by_actor.items():
-                actor = candidate.actor(actor_id)
-                actor.active_effects = list(
-                    apply_effects(
-                        actor.active_effects,
-                        incoming_effects,
-                        now_seconds=now_seconds,
-                    )
-                )
-
-            candidate_simulation = Simulation(
-                self.simulation.scene,
-                state=candidate,
-                seed=self.simulation.seed,
+            candidate, tick, _commit_plan = build_atomic_round_candidate(
+                self.simulation,
+                before,
+                actor_updates=actor_updates,
+                disturbances=disturbances,
             )
-            candidate_simulation.run_context = self.simulation.run_context
-            candidate_simulation.random = self.simulation.random
-            candidate_simulation.rng = self.simulation.rng
-            tick = candidate_simulation.tick(disturbances=disturbances)
 
             self._phase(phases, CoordinatorPhase.COMMIT)
-            self.simulation.state = candidate_simulation.state
+            self.simulation.state = candidate
             committed = True
 
             self._phase(phases, CoordinatorPhase.RECORD)
