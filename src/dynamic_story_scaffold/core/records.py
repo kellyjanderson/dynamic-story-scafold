@@ -88,6 +88,7 @@ class RoundExecutionMetadata:
     state_after_digest: str | None = None
     committed: bool = False
     error: str | None = None
+    arbitrations: tuple[Mapping[str, Any], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
