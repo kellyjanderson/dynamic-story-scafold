@@ -46,3 +46,8 @@ install = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+  "unit: narrow isolated behavior",
+  "integration: cross-component/application behavior",
+  "regression: previously fixed failure coverage",
+]

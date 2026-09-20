@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Any, Mapping
 
 from .effects import Effect
+from .identity import RoundId
 from .refs import ComponentRef, EntityRef, TargetRef
 from .scoring import ScoreBreakdown
 from .spatial import Position
@@ -29,6 +30,64 @@ class Outcome(StrEnum):
     SUCCESS = "success"
     STRONG_SUCCESS = "strong_success"
     CRITICAL_SUCCESS = "critical_success"
+
+
+class CoordinatorPhase(StrEnum):
+    SNAPSHOT = "snapshot"
+    PERCEIVE = "perceive"
+    INTENT = "intent"
+    NORMALIZE_PROPOSALS = "normalize_proposals"
+    REACTION_ARBITRATION = "reaction_arbitration"
+    RESOLVE = "resolve"
+    COLLECT_CONSEQUENCES = "collect_consequences"
+    COMMIT = "commit"
+    RECORD = "record"
+
+
+class ProposalTerminalStatus(StrEnum):
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    CANCELED = "canceled"
+    DEFERRED = "deferred"
+    FAILED = "failed"
+    OVERFLOWED = "overflowed"
+
+
+@dataclass(frozen=True, slots=True)
+class WorkBudget:
+    max_proposals: int = 256
+    max_resolutions: int = 256
+    max_causal_depth: int = 8
+    max_deferrals: int = 64
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("max_proposals", self.max_proposals),
+            ("max_resolutions", self.max_resolutions),
+            ("max_causal_depth", self.max_causal_depth),
+            ("max_deferrals", self.max_deferrals),
+        ):
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative")
+
+
+@dataclass(frozen=True, slots=True)
+class ProposalAudit:
+    proposal_id: str
+    status: ProposalTerminalStatus
+    actor: EntityRef | None = None
+    detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RoundExecutionMetadata:
+    round_id: RoundId
+    phases: tuple[CoordinatorPhase, ...]
+    proposals: tuple[ProposalAudit, ...]
+    state_before_digest: str
+    state_after_digest: str | None = None
+    committed: bool = False
+    error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,6 +289,7 @@ class RoundRecord:
     ticks: tuple[TickRecord, ...] = ()
     state_before: Mapping[str, Any] = field(default_factory=dict)
     state_after: Mapping[str, Any] = field(default_factory=dict)
+    execution: RoundExecutionMetadata | None = None
 
     @property
     def started_at(self) -> float:
