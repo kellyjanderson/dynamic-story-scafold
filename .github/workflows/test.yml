@@ -14,4 +14,10 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip hatch
       - run: hatch run build
-      - run: hatch run dss install
+      - run: |
+          tmp=$(mktemp -d)
+          python -m venv "$tmp/venv"
+          "$tmp/venv/bin/python" -m pip install --disable-pip-version-check -q dist/*.whl
+          export DYNAMIC_STORY_SCAFFOLD_DATA_DIR="$tmp/data"
+          "$tmp/venv/bin/dss-maintain" setup --json
+          "$tmp/venv/bin/dss" --help >/dev/null
