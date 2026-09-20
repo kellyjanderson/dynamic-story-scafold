@@ -12,7 +12,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip hatch
       - run: |
           tmp=$(mktemp -d)
           export DSS_INSTALL_ROOT="$tmp/app"
