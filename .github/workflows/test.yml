@@ -18,6 +18,6 @@ jobs:
           export DSS_INSTALL_ROOT="$tmp/app"
           export DSS_BIN_DIR="$tmp/bin"
           export DYNAMIC_STORY_SCAFFOLD_DATA_DIR="$tmp/data"
-          /bin/sh scripts/install.sh
+          ./scripts/install.sh
           "$tmp/bin/dss" --help >/dev/null
           "$tmp/bin/dss-maintain" db status --json
