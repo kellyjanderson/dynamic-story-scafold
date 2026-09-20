@@ -7,6 +7,12 @@ runs, branches, rendered assets, feedback, and long-lived replay.
 
 This upgrade is about lifecycle and data organization, not simulation policy.
 
+
+Database schema changes are an **installer/maintenance concern**. The normal
+`dss` runtime must verify that application state is ready and fail clearly if
+it is not; it must never run Alembic upgrades implicitly. Explicit setup and
+support migrations belong to the separate `dss-maintain` executable.
+
 ## Packages
 
 Use:

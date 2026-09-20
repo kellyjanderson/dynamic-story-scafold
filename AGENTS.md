@@ -47,6 +47,39 @@ Every feature or fix must use a feature branch.
   feature branch.
 - Direct commits to `main` require explicit user instruction.
 
+
+## Execution-context boundaries
+
+DSS has three command contexts that must not be conflated.
+
+### Repository/build context
+
+Repository work uses Hatch, pytest, scripts, and other source-tree tooling.
+
+- Build/package/test commands must not invoke the user-facing `dss` CLI.
+- Build provenance belongs with distribution artifacts, not in the application database.
+- Repository tooling may depend on development-only packages that are not runtime dependencies.
+
+### Installer/maintenance context
+
+Installed-state setup and schema migration belong to `dss-maintain`.
+
+- `dss-maintain setup` initializes or upgrades application state after package installation.
+- `dss-maintain db migrate` is an explicit installer/technical-support operation.
+- Normal runtime code must never call Alembic migration functions implicitly.
+
+### Runtime application context
+
+The user-facing application command is `dss`.
+
+- `dss` may inspect or use prepared runtime state.
+- If runtime state is missing or schema-stale, fail with a maintenance instruction.
+- Runtime execution must not assume a Git checkout, Hatch, `dist/`, build metadata, or repository paths exist.
+
+The invariant is:
+
+> Source/build tooling does not execute the application to build or install itself, and the installed application does not reach back into the source/repository context.
+
 ## Tooling principle
 
 Use mature existing packages and platform tooling for generic concerns. Custom

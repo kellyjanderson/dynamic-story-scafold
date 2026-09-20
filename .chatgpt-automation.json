@@ -42,9 +42,8 @@
     "package": {
       "argv": [
         "/bin/sh",
-        "scripts/automation-hatch",
-        "build",
-        "-c"
+        "-lc",
+        "/bin/sh scripts/automation-hatch run package"
       ],
       "timeout_seconds": 600
     },
@@ -52,7 +51,7 @@
       "argv": [
         "/bin/sh",
         "-lc",
-        "tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; export DYNAMIC_STORY_SCAFFOLD_DATA_DIR=\"$tmp\"; /bin/sh scripts/automation-hatch run dss install --json; /bin/sh scripts/automation-hatch run dss db status --json"
+        "set -eu; tmp=$(mktemp -d); trap 'rm -rf \"$tmp\"' EXIT; /bin/sh scripts/automation-hatch run package >/dev/null; python3 -m venv \"$tmp/venv\"; \"$tmp/venv/bin/python\" -m pip install --disable-pip-version-check -q dist/*.whl; export DYNAMIC_STORY_SCAFFOLD_DATA_DIR=\"$tmp/data\"; \"$tmp/venv/bin/dss-maintain\" setup --json; \"$tmp/venv/bin/dss-maintain\" db status --json; \"$tmp/venv/bin/dss\" --help >/dev/null"
       ],
       "timeout_seconds": 600
     },

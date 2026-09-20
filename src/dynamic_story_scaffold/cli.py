@@ -3,25 +3,18 @@ from __future__ import annotations
 import json
 import platform
 import sys
-from importlib.metadata import version
 from pathlib import Path
 
 import typer
-from sqlalchemy import select
 
 from .application import ReplayMismatch, SimulationApplication
-from .build_history import record_build
-from .database import Build, Database
+from .database import Database, DatabaseNotReady
 from .paths import data_dir, database_path
 
 app = typer.Typer(no_args_is_help=True)
-db_app = typer.Typer(no_args_is_help=True)
-builds_app = typer.Typer(no_args_is_help=True)
 scene_app = typer.Typer(no_args_is_help=True)
 run_app = typer.Typer(no_args_is_help=True)
 round_app = typer.Typer(no_args_is_help=True)
-app.add_typer(db_app, name="db")
-app.add_typer(builds_app, name="builds")
 app.add_typer(scene_app, name="scene")
 app.add_typer(run_app, name="run")
 app.add_typer(round_app, name="round")
@@ -45,27 +38,10 @@ def _emit(payload: object, json_output: bool) -> None:
             typer.echo(payload)
 
 
-@app.command()
-def install(
-    database: Path | None = typer.Option(None, "--database"),
-    json_output: bool = typer.Option(False, "--json"),
-) -> None:
-    db = _database(database)
-    status = db.install(package_version=version("dynamic-story-scaffold"))
-    _emit(
-        {
-            "installed": True,
-            "package_version": version("dynamic-story-scaffold"),
-            "database_path": str(status.path),
-            "revision": status.revision,
-            "installation_count": status.installation_count,
-        },
-        json_output,
-    )
-
-
 @app.command("paths")
 def paths_command(json_output: bool = typer.Option(False, "--json")) -> None:
+    """Show the installed application's runtime-state locations."""
+
     _emit(
         {
             "os_name": platform.system(),
@@ -77,62 +53,6 @@ def paths_command(json_output: bool = typer.Option(False, "--json")) -> None:
     )
 
 
-@db_app.command("status")
-def db_status(
-    database: Path | None = typer.Option(None, "--database"),
-    json_output: bool = typer.Option(False, "--json"),
-) -> None:
-    status = _database(database).status()
-    _emit(
-        {
-            "database_path": str(status.path),
-            "revision": status.revision,
-            "installation_count": status.installation_count,
-            "build_count": status.build_count,
-        },
-        json_output,
-    )
-
-
-@builds_app.command("record")
-def builds_record(
-    directory: Path = typer.Argument(Path("dist")),
-    database: Path | None = typer.Option(None, "--database"),
-    json_output: bool = typer.Option(False, "--json"),
-) -> None:
-    build_id, artifact_count = record_build(directory, _database(database))
-    _emit(
-        {"build_id": build_id, "artifact_count": artifact_count},
-        json_output,
-    )
-
-
-@builds_app.command("list")
-def builds_list(
-    limit: int = typer.Option(20, "--limit", min=1),
-    database: Path | None = typer.Option(None, "--database"),
-    json_output: bool = typer.Option(False, "--json"),
-) -> None:
-    db = _database(database)
-    db.migrate()
-    with db.session() as session:
-        rows = session.scalars(
-            select(Build).order_by(Build.id.desc()).limit(limit)
-        ).all()
-        payload = [
-            {
-                "id": row.id,
-                "package_version": row.package_version,
-                "git_commit": row.git_commit,
-                "git_branch": row.git_branch,
-                "output_dir": row.output_dir,
-                "created_at": row.created_at,
-            }
-            for row in rows
-        ]
-    _emit(payload, json_output)
-
-
 def _application(path: Path | None) -> SimulationApplication:
     return SimulationApplication(_database(path))
 
@@ -140,7 +60,14 @@ def _application(path: Path | None) -> SimulationApplication:
 def _service_command(action, *, json_output: bool) -> None:
     try:
         _emit(action(), json_output)
-    except (FileNotFoundError, KeyError, ValueError, ReplayMismatch, RuntimeError) as exc:
+    except (
+        FileNotFoundError,
+        KeyError,
+        ValueError,
+        ReplayMismatch,
+        DatabaseNotReady,
+        RuntimeError,
+    ) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 

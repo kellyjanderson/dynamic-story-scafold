@@ -86,8 +86,8 @@ check for an established package.
 
 Packages selected by this plan:
 
-- existing: PyYAML, SQLAlchemy, Alembic, Typer, platformdirs, GitPython,
-  Hatch/Hatchling, pytest
+- runtime/application: PyYAML, SQLAlchemy, Alembic, Typer, platformdirs
+- repository/build/development only: GitPython, Hatch/Hatchling, pytest
 - add for MVP: **networkx** for dependency graphs/SCC/topological operations
 - add for development tests: **Hypothesis** for bounded termination,
   idempotency, ordering, and replay properties
@@ -224,12 +224,17 @@ Default:
 hatch run test
 ```
 
-For slices that alter packaging/database installation:
+For slices that alter packaging or installation boundaries:
 
 ```bash
 hatch run build
-hatch run dss install
+hatch run package
 ```
+
+Installed-runtime qualification must install the built wheel into a separate
+environment, run `dss-maintain setup`, and then exercise `dss`. Repository
+tooling must never use `hatch run dss ...` as a substitute for an installed
+application.
 
 Use focused test invocations during development, but finish a document with the
 full local test suite before its PR is opened.
