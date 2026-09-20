@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+if command -v hatch >/dev/null 2>&1; then
+  exec hatch "$@"
+fi
+
+venv="${DSS_AUTOMATION_VENV:-$PWD/.chatgpt-automation-venv}"
+if [ ! -x "$venv/bin/hatch" ]; then
+  python3 -m venv "$venv"
+  "$venv/bin/python" -m pip install --disable-pip-version-check -q "hatch>=1.14,<2"
+fi
+
+exec "$venv/bin/hatch" "$@"
