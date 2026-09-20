@@ -2,64 +2,41 @@
 set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-install_root="${DSS_INSTALL_ROOT:-$HOME/.local/apps/dss}"
-bin_dir="${DSS_BIN_DIR:-$HOME/.local/bin}"
-releases_dir="$install_root/releases"
-release="$releases_dir/$(date +%Y%m%d-%H%M%S)-$$"
-venv="$release/.venv"
-current="$install_root/current"
-cleanup_release=1
 
-cleanup() {
-  if [ "$cleanup_release" -eq 1 ]; then
-    rm -rf "$release"
+run_pipx() {
+  if command -v pipx >/dev/null 2>&1; then
+    pipx "$@"
+    return
   fi
-}
-trap cleanup 0 HUP INT TERM
+  if python3 -m pipx --version >/dev/null 2>&1; then
+    python3 -m pipx "$@"
+    return
+  fi
 
-echo "==> Building and qualifying Dynamic Story Scaffold"
-(
-  cd "$repo_root"
-  /bin/sh scripts/automation-hatch run build
-)
+  cat >&2 <<'EOF'
+DSS installation requires pipx, the standard Python application installer.
 
-wheel=$(find "$repo_root/dist" -maxdepth 1 -type f -name '*.whl' -print | sort | tail -n 1)
-if [ -z "$wheel" ]; then
-  echo "install: no wheel produced under $repo_root/dist" >&2
+On macOS:
+  brew install pipx
+  pipx ensurepath
+
+Then rerun:
+  ./scripts/install.sh
+EOF
   exit 1
-fi
+}
 
-echo "==> Installing $wheel"
-mkdir -p "$releases_dir" "$bin_dir"
-python3 -m venv "$venv"
-"$venv/bin/python" -m pip install --disable-pip-version-check -q --upgrade pip
-"$venv/bin/python" -m pip install --disable-pip-version-check -q "$wheel"
+echo "==> Installing Dynamic Story Scaffold with pipx"
+run_pipx install --force "$repo_root"
+
+bin_dir=$(run_pipx environment --value PIPX_BIN_DIR)
 
 echo "==> Preparing application state"
-"$venv/bin/dss-maintain" setup
-
-old_current=$(readlink "$current" 2>/dev/null || true)
-ln -sfn "$release" "$current"
-ln -sfn "$current/.venv/bin/dss" "$bin_dir/dss"
-ln -sfn "$current/.venv/bin/dss-maintain" "$bin_dir/dss-maintain"
-
-cleanup_release=0
-
-case "$old_current" in
-  "$releases_dir"/*)
-    if [ "$old_current" != "$release" ]; then
-      rm -rf "$old_current"
-    fi
-    ;;
-esac
+"$bin_dir/dss-maintain" setup
 
 echo
 echo "Dynamic Story Scaffold installed."
 echo "  app:         $bin_dir/dss"
 echo "  maintenance: $bin_dir/dss-maintain"
 echo
-if command -v dss >/dev/null 2>&1; then
-  echo "Run: dss --help"
-else
-  echo "Add $bin_dir to PATH, then run: dss --help"
-fi
+echo "Run: dss --help"
