@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from .core.effects import Effect
-from .core.records import ActorUpdate
-from .core.refs import ComponentRef, EntityKind, EntityRef
+from .core.effects import Effect, EffectStacking
+from .core.records import ActorUpdate, WorldSnapshot
+from .core.refs import ComponentRef, EntityKind, EntityRef, TargetRef
 from .core.spatial import Position
 from .core.values import UNIT_INTERVAL
 from .schema import (
@@ -69,6 +69,24 @@ class ActorState:
             inventory=_string_list(initial.pop("inventory", ())),
             relationships=_float_mapping(initial.pop("relationships", {})),
             values=initial,
+        )
+
+    @classmethod
+    def from_snapshot_data(cls, data: Mapping[str, Any]) -> "ActorState":
+        return cls(
+            id=str(data["id"]),
+            position=_parse_position(data.get("position")),
+            posture=_optional_string(data.get("posture")),
+            health=float(data.get("health", 1.0)),
+            fatigue=float(data.get("fatigue", 0.0)),
+            resources=_float_mapping(data.get("resources", {})),
+            inventory=_string_list(data.get("inventory", ())),
+            active_effects=[
+                _effect_from_snapshot(item)
+                for item in _mapping_list(data.get("active_effects", ()))
+            ],
+            relationships=_float_mapping(data.get("relationships", {})),
+            values=dict(_mapping(data.get("values", {}))),
         )
 
     def apply(self, update: ActorUpdate) -> None:
@@ -172,6 +190,38 @@ class WorldState:
             actors=actors,
         )
 
+    @classmethod
+    def from_snapshot(cls, snapshot: WorldSnapshot | Mapping[str, Any]) -> "WorldState":
+        data = snapshot.to_data() if isinstance(snapshot, WorldSnapshot) else WorldSnapshot(snapshot).to_data()
+
+        environment: dict[str, EnvironmentElementState] = {}
+        for element_name, raw_components in _mapping(data.get("environment", {})).items():
+            components: dict[str, ComponentState] = {}
+            for component_name, raw_component in _mapping(raw_components).items():
+                component_data = _mapping(raw_component)
+                if "velocity" in component_data:
+                    components[str(component_name)] = ContinuousComponentState(
+                        value=float(component_data["value"]),
+                        velocity=float(component_data.get("velocity", 0.0)),
+                    )
+                else:
+                    components[str(component_name)] = DiscreteComponentState(
+                        value=str(component_data["value"])
+                    )
+            environment[str(element_name)] = EnvironmentElementState(components)
+
+        actors = {
+            str(actor_id): ActorState.from_snapshot_data(_mapping(actor_data))
+            for actor_id, actor_data in _mapping(data.get("actors", {})).items()
+        }
+
+        return cls(
+            tick=int(data.get("tick", 0)),
+            elapsed_seconds=float(data.get("elapsed_seconds", 0.0)),
+            environment=environment,
+            actors=actors,
+        )
+
     def component(self, reference: str | ComponentRef) -> ComponentState:
         try:
             component = (
@@ -194,6 +244,9 @@ class WorldState:
 
     def apply_actor_update(self, update: ActorUpdate) -> None:
         self.actor(update.actor).apply(update)
+
+    def to_snapshot(self) -> WorldSnapshot:
+        return WorldSnapshot.from_data(self.snapshot())
 
     def snapshot(self) -> Mapping[str, Any]:
         environment: dict[str, dict[str, Any]] = {}
@@ -220,6 +273,39 @@ class WorldState:
         }
 
 
+def _effect_from_snapshot(data: Mapping[str, Any]) -> Effect:
+    source = _parse_entity_ref(str(data["source"]))
+    target = _parse_target_ref(str(data["target"]))
+    return Effect(
+        id=str(data["id"]),
+        kind=str(data["kind"]),
+        source=source,
+        target=target,
+        magnitude=float(data.get("magnitude", 1.0)),
+        duration_seconds=(
+            None
+            if data.get("duration_seconds") is None
+            else float(data["duration_seconds"])
+        ),
+        stacking=EffectStacking(str(data.get("stacking", EffectStacking.REPLACE.value))),
+        tags=tuple(str(item) for item in data.get("tags", ())),
+        data=dict(_mapping(data.get("data", {}))),
+    )
+
+
+def _parse_entity_ref(value: str) -> EntityRef:
+    kind, separator, item_id = value.partition(":")
+    if not separator or not kind or not item_id:
+        raise ValueError(f"invalid entity reference {value!r}")
+    return EntityRef(EntityKind(kind), item_id)
+
+
+def _parse_target_ref(value: str) -> TargetRef:
+    if ":" in value:
+        return _parse_entity_ref(value)
+    return ComponentRef.parse(value)
+
+
 def _parse_position(value: Any) -> Position | None:
     if value is None:
         return None
@@ -243,6 +329,18 @@ def _optional_float(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
+def _mapping(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError("expected mapping")
+    return value
+
+
+def _mapping_list(value: Any) -> list[Mapping[str, Any]]:
+    if value is None:
+        return []
+    return [_mapping(item) for item in value]
+
+
 def _float_mapping(value: Any) -> dict[str, float]:
     if value is None:
         return {}
@@ -257,4 +355,3 @@ def _string_list(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value]
     return [str(item) for item in value]
-
