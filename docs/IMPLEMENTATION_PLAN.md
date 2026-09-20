@@ -1318,9 +1318,8 @@ Execution contexts are intentionally separate:
    state and never runs migrations.
 
 Repository/build tooling must not invoke `dss` to build, install, migrate, or
-qualify itself. Runtime code must not assume a Git checkout, Hatch environment,
-`dist/` directory, or build metadata exists. Build provenance belongs beside
-the distribution artifacts rather than in the application database.
+qualify itself. Runtime code must not assume a Git checkout, Hatch environment, `dist/`
+directory, or build metadata exists.
 
 Current choices:
 
