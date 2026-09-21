@@ -20,6 +20,8 @@ Use existing:
 - networkx
 - Hypothesis
 - SQLAlchemy/Alembic if persistence schema needs extension
+- Pydantic v2 at the IX-09 authored descriptive-schema boundary for strict
+  validation and generated JSON Schema; map validated input into domain values
 
 No custom event loop or workflow engine.
 
@@ -432,7 +434,7 @@ syntax in simulation definitions.
 
 ### Packages
 
-No new package.
+- Pydantic v2 for strict authored-input validation and generated JSON Schema
 
 ### Method
 

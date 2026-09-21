@@ -10,14 +10,23 @@ The authoritative slice tracker is
 [`project/Plans/post-mvp-implementation-slices.md`](../../project/Plans/post-mvp-implementation-slices.md).
 The implementation detail for each release remains in the linked plan.
 
+Every release is also measured against the cumulative role-playing-to-image
+acceptance path in [`docs/PRODUCT_LOOP.md`](../PRODUCT_LOOP.md). This prevents
+simulation depth, prose, rendering, and persistence from becoming disconnected
+subsystems that never assemble into the original user workflow.
+
 ## v0.2.0 — Possible futures
 
-**Simulation outcome:** users can fork, reroll, intervene, compare, and activate
-timeline branches without destroying alternatives.
+**Simulation outcome:** users can choose a legal player/GM action at a
+checkpoint, advance one turn on a branch, reroll, intervene, compare, and
+activate alternatives without destroying them.
 
 **Prose outcome:** descriptions retain their source branch/checkpoint identity.
 Branch comparison can explain the first causal divergence and its visible or
 narratively relevant consequences in readable prose.
+
+**Product-loop proof:** one explicit user choice advances one bounded,
+replayable branch turn.
 
 Plan: [`02_TIMELINE_BRANCHING.md`](../implementation/02_TIMELINE_BRANCHING.md).
 
@@ -67,6 +76,10 @@ camera/composition guidance, and style. The canonical artifact is structured
 facts plus prose; provider-specific image prompts are derived representations.
 The same prose can be used in a story or passed to ChatGPT for an image.
 
+**Product-loop proof:** one application workflow accepts a directed turn,
+advances it, selects a moment, compiles prose, and renders an image or emits an
+ordered keyframe sequence.
+
 Plan: [`06_RENDER_PIPELINE.md`](../implementation/06_RENDER_PIPELINE.md).
 
 ## v0.7.0 — Durable story projects
@@ -77,6 +90,9 @@ and rendered assets survive across sessions and support import/export.
 **Prose outcome:** reusable prose libraries, entity identity descriptions,
 condition variants, compiled passages, continuity references, and their exact
 source revisions are durable project data.
+
+**Product-loop proof:** the workflow resumes as a campaign session and preserves
+progressive prose, images, keyframes, continuity references, and branches.
 
 Plan: [`07_PERSISTENCE_WORKFLOW.md`](../implementation/07_PERSISTENCE_WORKFLOW.md).
 

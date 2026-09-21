@@ -190,3 +190,28 @@ Keep these concerns in feature modules:
 
 The core library defines contracts and durable values. Feature layers define
 policy.
+
+## Shared libraries beyond `core`
+
+Shared code does not imply that every reusable type belongs in `core`. Each
+cross-release concern has one owning library boundary:
+
+| Concern | Owning library | Reused by |
+|---|---|---|
+| identity, references, time, scores, random streams, immutable transition records | `dynamic_story_scaffold.core` | all domains |
+| branch lineage, checkpoint ancestry, causal difference | `dynamic_story_scaffold.timeline` | play, observer, persistence, evaluation |
+| legal choice presentation and player/GM action requests | `dynamic_story_scaffold.play` | CLI, campaign sessions, provider adapters |
+| visible fact claims, authored fragments, description requests/results, prose profiles | `dynamic_story_scaffold.description` | spatial projection, observer, prose, providers, persistence, evaluation |
+| renderer-neutral requests/results, assets, continuity references | `dynamic_story_scaffold.rendering` | adapters, workflow, persistence, evaluation |
+| campaign/session/revision records | `dynamic_story_scaffold.campaign` | application workflow, persistence, import/export |
+| provider capability, provenance, normalized failure/fallback records | `dynamic_story_scaffold.providers` | image, intent, and prose adapters once common behavior is proven |
+| findings, metrics, feedback, comparison reports | `dynamic_story_scaffold.evaluation` | validators and review workflows |
+
+A slice must extend the owning library instead of declaring a local substitute.
+CLI commands and application services orchestrate these libraries; they do not
+own duplicate domain models. Provider-specific SDK objects stop at adapters.
+Persistence models map to shared records and do not become the domain API.
+
+Create a generic abstraction only after two real consumers demonstrate the same
+contract. Until then, keep the implementation in its bounded domain and leave a
+clear extraction point.

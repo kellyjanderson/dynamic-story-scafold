@@ -26,6 +26,11 @@ custom HTTP.
 Do not introduce a generic multi-provider framework until at least two real
 providers require the abstraction.
 
+On Apple Silicon, evaluate **MLX-LM** first for local inference and LoRA/QLoRA
+fine tuning because it already supplies those generic facilities. Do not add it
+to production dependencies until a named model, memory/latency target, and the
+v0.8 evaluation corpus demonstrate value over the deterministic compiler.
+
 ---
 
 ## Slice EP-01 — Provider-neutral decision request/response schema
