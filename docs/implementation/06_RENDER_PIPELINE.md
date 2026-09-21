@@ -21,6 +21,10 @@ Use:
 - add **openai** only for an OpenAI image adapter; use the official SDK rather
   than custom HTTP
 - add **tenacity** for bounded retries of explicitly transient provider errors
+- add **Pydantic v2** for serialized description/render boundary validation and
+  JSON Schema; do not replace stable core dataclasses wholesale
+- add **Jinja2** for authored prose templates through
+  `SandboxedEnvironment` and `StrictUndefined`
 - stdlib pathlib/hashlib for local asset references and content hashes
 
 Do not build a generic HTTP client wrapper around provider SDKs.
@@ -43,7 +47,7 @@ Style configuration is render-domain code, not simulation core.
 
 ### Packages
 
-No new package.
+- Pydantic v2 for validated external configuration and generated JSON Schema
 
 ### Method
 
@@ -116,7 +120,7 @@ RP-01 and selected cinematic moment.
 
 ### Packages
 
-No new package.
+- Pydantic v2 for serialized request/result boundaries
 
 ### Method
 
@@ -187,7 +191,7 @@ RP-02.
 
 ### Packages
 
-No new package.
+- Jinja2 `SandboxedEnvironment` with `StrictUndefined`
 
 ### Method
 
@@ -212,6 +216,11 @@ It may omit irrelevant truth. It may not add unsupported action.
 
 Keep compiler deterministic for a given DescriptionRequest unless a specific
 prompt-variation feature is later introduced.
+
+Use a small DSS-owned template context and allowlist of filters. Inspect template
+variables before rendering, reject unknown variables, bound template/output
+size, and preserve fragment/template provenance. Jinja supplies templating; it
+does not decide which facts are true or visible.
 
 Output complete, readable sentences and paragraphs suitable for a story or for
 passing to ChatGPT to create an image. Provider adapters may wrap or augment the
@@ -498,3 +507,52 @@ action beats, and a resolved frame without requiring a video provider.
 
 DSS can produce coherent, source-backed keyframe prose ready for use with a
 generative video workflow.
+
+---
+
+## Slice RP-10 — Directed turn to image/keyframe workflow
+
+### Goal
+
+Assemble the original product loop into one application service and CLI flow.
+
+### Depends on
+
+The v0.2 directed-turn contract, RP-01 through RP-09, and cinematic selection.
+
+### Shared code
+
+**USE** `play` requests/results, coordinator, moment selection, `description`
+contracts/compiler, `rendering` requests/adapters/assets, and branch provenance.
+Do not create workflow-local copies of any record.
+
+### Packages
+
+Typer plus already selected packages. Do not add a workflow engine.
+
+### Method
+
+Provide an application operation that presents/accepts a legal player or GM
+choice, advances exactly one turn, selects a narratable instant, compiles prose,
+and either renders an image or emits an ordered keyframe description. Each stage
+returns a durable or serializable ID/result and may be inspected separately.
+Rendering failure leaves the completed turn valid and retryable.
+
+Expose an approximate command such as:
+
+`dss play turn CHECKPOINT_ID --actor ACTOR --choice CHOICE --describe --render`
+
+The command delegates to the application service. It does not join domain logic
+inside Typer callbacks.
+
+### Tests
+
+- end-to-end fake-adapter turn produces linked round, moment, prose, and asset
+- keyframe mode produces ordered grounded descriptions without a provider
+- render failure does not roll back or duplicate the simulation turn
+- replay and rerender use recorded inputs and continuity references
+
+### Completion
+
+A user can direct one turn and receive a traceable progressive campaign image
+or keyframe description through one installed DSS workflow.

@@ -8,6 +8,10 @@ Users can fork any eligible checkpoint, reroll a disliked outcome, intervene in
 state, explore multiple stochastic futures, compare siblings, and select an
 active timeline without deleting alternatives.
 
+This release also adds the first application-level player/GM turn seam: DSS
+presents legal choices from a checkpoint, accepts one explicit choice, and
+advances one branch turn while normal providers choose the remaining actors.
+
 This feature extends the MVP lineage model; it does not create a second
 simulation engine.
 
@@ -225,7 +229,56 @@ forcing/events where possible.
 
 ---
 
-## Slice BR-05 — Branch comparison
+## Slice BR-05 — Player/GM directed turn
+
+### Goal
+
+Accept one explicit legal player or GM action and advance one bounded branch
+turn through the normal simulation coordinator.
+
+### Depends on
+
+BR-01 and the MVP action-candidate, intent, coordinator, and checkpoint services.
+
+### Shared code
+
+**CREATE** the `play` library's reusable `ChoicePresentation`,
+`DirectedActionRequest`, and `DirectedTurnResult` contracts. **USE** existing
+candidate IDs, refs, `ActionIntent`, checkpoint/branch IDs, and round records.
+
+### Packages
+
+No new package. Do not represent this shared boundary as CLI dictionaries.
+
+### Method
+
+From a branch checkpoint, enumerate legal actions and targets for a selected
+actor. Return stable choice IDs plus concise structured display data. Accept a
+choice by ID with its checkpoint precondition, reject stale or illegal choices,
+convert the accepted choice to the same `ActionIntent` used by providers, obtain
+remaining actor proposals normally, and advance exactly one round.
+
+The directed action receives no mutation privilege. A GM intervention remains
+the audited BR-04 operation. Preserve request, selected choice, resulting round,
+output checkpoint, and branch provenance. The application service owns this
+sequence; CLI code does not call the coordinator piecemeal.
+
+### Tests
+
+- presented choices are legal at the referenced checkpoint
+- stale, unknown, or actor-mismatched choices fail before mutation
+- explicit choice and provider-generated intents share validation/arbitration
+- exactly one round advances and replay matches
+- parent and sibling branches remain unchanged
+
+### Completion
+
+A person can direct one actor for one turn while DSS scripts the remaining
+simulation work.
+
+---
+
+## Slice BR-06 — Branch comparison
 
 ### Goal
 
@@ -268,7 +321,7 @@ Users/tools can answer "why did these timelines diverge?"
 
 ---
 
-## Slice BR-06 — CLI branch workflow
+## Slice BR-07 — CLI branch and directed-turn workflow
 
 ### Goal
 
@@ -276,7 +329,7 @@ Expose practical multiverse operations.
 
 ### Depends on
 
-BR-01 through BR-05.
+BR-01 through BR-06.
 
 ### Shared code
 
@@ -298,6 +351,8 @@ Commands approximately:
 - `dss branch intervene CHECKPOINT_ID ...`
 - `dss branch compare BRANCH_A BRANCH_B`
 - `dss branch activate BRANCH_ID`
+- `dss play choices CHECKPOINT_ID --actor ACTOR_ID`
+- `dss play turn CHECKPOINT_ID --actor ACTOR_ID --choice CHOICE_ID`
 
 "Activate" changes a user/workflow pointer; it never deletes siblings.
 
@@ -307,11 +362,12 @@ CLI/service integration with JSON output.
 
 ### Completion
 
-Timeline branching can be operated entirely through the application service/CLI.
+Timeline branching and one directed turn can be operated entirely through the
+application service/CLI.
 
 ---
 
-## Slice BR-07 — Branch-grounded descriptive comparison
+## Slice BR-08 — Branch-grounded descriptive comparison
 
 ### Goal
 
@@ -319,7 +375,7 @@ Produce readable comparison prose grounded in the structured branch comparison.
 
 ### Depends on
 
-BR-05 and branch/checkpoint provenance.
+BR-06 and branch/checkpoint provenance.
 
 ### Shared code
 
@@ -364,3 +420,4 @@ Prove:
 - ancestry acyclicity
 - intervention atomicity
 - comparison identifies first causal divergence
+- one legal user choice advances exactly one replayable branch turn

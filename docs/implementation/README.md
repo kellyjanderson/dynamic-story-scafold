@@ -85,8 +85,8 @@ decision, split it before implementation.
 
 ### Agents must not redesign shared contracts casually
 
-Shared code currently lives under `dynamic_story_scaffold.core` and is
-documented in `docs/CORE_LIBRARY.md`.
+Shared code begins under `dynamic_story_scaffold.core`; cross-release bounded
+libraries and their single owners are documented in `docs/CORE_LIBRARY.md`.
 
 A slice explicitly says whether it must:
 
@@ -112,9 +112,35 @@ Packages selected by this plan:
   idempotency, ordering, and replay properties
 - later renderer/provider retry work: **tenacity** only where retries are
   actually required
+- external configuration/provider boundaries: **Pydantic v2** for strict
+  validation, serialization, and JSON Schema; retain core domain dataclasses
+- authored prose templates: **Jinja2** `SandboxedEnvironment` with
+  `StrictUndefined`; do not invent a template language
+- provider calls: the provider's official SDK, beginning with **openai**
+- image decoding and evaluation: **Pillow**, **NumPy**, and **scikit-image** in
+  the evaluation extra/slice that needs them
+- optional Apple Silicon local-model experiments: **MLX-LM** only after a
+  concrete model and corpus pass the v0.8 evaluation gate; keep training tools
+  outside the production runtime
 
 Do not write custom graph algorithms, migration frameworks, CLI parsers,
 task runners, retry frameworks, or build systems.
+
+Do not add a generic provider framework, workflow engine, finite-state-machine
+package, or object-diff package preemptively. DSS branch differences are causal
+and lineage-aware, and DSS transitions carry replay/provenance rules; generic
+structural diff or state-machine libraries do not supply those semantics.
+
+### Shared-concern ownership
+
+`docs/CORE_LIBRARY.md` assigns every concern reused across releases to one
+library boundary. Before a slice creates a type, serializer, validator, store,
+provider error, asset reference, or application request, inspect that table and
+extend the owner. A feature-local duplicate is a plan defect.
+
+The cumulative product acceptance path is defined in `docs/PRODUCT_LOOP.md`.
+Each release qualification must run the portion of that path available at that
+version, rather than qualifying its subsystems only in isolation.
 
 ### Keep policy out of the core library
 

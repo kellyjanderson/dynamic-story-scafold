@@ -38,7 +38,8 @@ Update `pyproject.toml` and the installer to the section's semantic version;
 extend the installer/package version-drift test; write release notes describing
 implemented user-visible behavior and honest exclusions; run the full suite,
 clean package build, isolated pipx install, maintenance setup, and installed CLI
-smoke/replay appropriate to the release. Merge the release PR first. Tag that
+smoke/replay appropriate to the release. Run the cumulative product-loop proof
+for that release from `docs/PRODUCT_LOOP.md`. Merge the release PR first. Tag that
 exact merged commit with an annotated `vX.Y.Z` tag, publish the GitHub release
 with its artifacts, and verify tag target, asset digests, and clean `main`.
 
@@ -46,7 +47,8 @@ with its artifacts, and verify tag target, asset digests, and clean `main`.
 
 Package and installer versions match; distributions contain the intended
 version; isolated install and runtime qualification pass; release tag and assets
-resolve to the merged commit.
+resolve to the merged commit; the release's cumulative product-loop proof passes
+through installed commands and fake providers where paid calls are optional.
 
 ### Completion
 
@@ -59,9 +61,10 @@ checked, and local/remote release branches are cleaned up.
 - [ ] BR-02 — Full-future reroll
 - [ ] BR-03 — Scoped stochastic reroll
 - [ ] BR-04 — Explicit state intervention branches
-- [ ] BR-05 — Branch comparison
-- [ ] BR-06 — CLI branch workflow
-- [ ] BR-07 — Branch-grounded descriptive comparison
+- [ ] BR-05 — Player/GM directed turn
+- [ ] BR-06 — Branch comparison
+- [ ] BR-07 — CLI branch and directed-turn workflow
+- [ ] BR-08 — Branch-grounded descriptive comparison
 - [ ] REL-0.2.0 — Qualify, version, tag, and publish v0.2.0
 
 Plan: [`docs/implementation/02_TIMELINE_BRANCHING.md`](../../docs/implementation/02_TIMELINE_BRANCHING.md).
@@ -118,6 +121,7 @@ Plan: [`docs/implementation/05_CINEMATIC_OBSERVER.md`](../../docs/implementation
 - [ ] RP-07 — Continuation/reference-image workflow
 - [ ] RP-08 — Prose/render CLI and application workflow
 - [ ] RP-09 — Keyframe description sequence contract
+- [ ] RP-10 — Directed turn to image/keyframe workflow
 - [ ] REL-0.6.0 — Qualify, version, tag, and publish v0.6.0
 
 Plan: [`docs/implementation/06_RENDER_PIPELINE.md`](../../docs/implementation/06_RENDER_PIPELINE.md).
@@ -132,6 +136,7 @@ Plan: [`docs/implementation/06_RENDER_PIPELINE.md`](../../docs/implementation/06
 - [ ] PW-06 — Import/export bundle
 - [ ] PW-07 — Workflow-oriented CLI
 - [ ] PW-08 — Durable prose library and description provenance
+- [ ] PW-09 — Resumable campaign play session
 - [ ] REL-0.7.0 — Qualify, version, tag, and publish v0.7.0
 
 Plan: [`docs/implementation/07_PERSISTENCE_WORKFLOW.md`](../../docs/implementation/07_PERSISTENCE_WORKFLOW.md).

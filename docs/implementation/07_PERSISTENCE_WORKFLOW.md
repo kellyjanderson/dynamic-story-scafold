@@ -400,6 +400,48 @@ historical prose outputs.
 
 ---
 
+## Slice PW-09 — Resumable campaign play session
+
+### Goal
+
+Make the directed-turn-to-image loop resumable across installed DSS sessions.
+
+### Depends on
+
+PW-01 through PW-08 and RP-10.
+
+### Shared code
+
+**CREATE** campaign/session records in the `campaign` library. **USE** shared
+play, timeline, description, rendering, and asset contracts. Persistence maps
+those records; it does not define competing session objects.
+
+### Packages
+
+Existing SQLAlchemy/Alembic/Typer/platformdirs. Do not add a workflow engine.
+
+### Method
+
+Persist the campaign's active scene revision, active branch/checkpoint, player
+actor assignments, prose/style profile, latest continuity references, turn
+history, selected moments, descriptions, assets, and incomplete render status.
+Allow open, inspect, play-one-turn, rerender, branch, and resume operations.
+Session pointers are user workflow state and never delete alternate histories.
+
+### Tests
+
+- restart resumes the exact active checkpoint and continuity references
+- one session turn links choice, round, moment, prose, and asset
+- switching branches updates the session pointer without deleting siblings
+- incomplete rendering resumes idempotently without replaying the turn
+- export/import preserves the playable campaign session
+
+### Completion
+
+A progressive illustrated campaign can continue over many installed DSS runs.
+
+---
+
 ## Upgrade qualification
 
 Validate:
@@ -411,3 +453,4 @@ Validate:
 - asset provenance
 - import/export integrity
 - no long-running DB write transactions
+- resumable directed-turn-to-image campaign workflow
