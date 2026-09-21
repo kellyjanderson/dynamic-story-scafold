@@ -1,4 +1,4 @@
-# Feature Upgrade — Durable Campaigns, Persistence, and Workflow
+# v0.7.0 — Durable Campaigns, Persistence, and Workflow
 
 ## Outcome
 
@@ -6,6 +6,10 @@ Expand MVP persistence into a durable workspace for multiple scenes, campaigns,
 runs, branches, rendered assets, feedback, and long-lived replay.
 
 This upgrade is about lifecycle and data organization, not simulation policy.
+
+Authored sub-prose, prose profiles, compiled passages, sentence provenance,
+keyframe descriptions, continuity references, and derived assets are durable
+project data in this release.
 
 
 Database schema changes are an **installer/maintenance concern**. The normal
@@ -349,6 +353,50 @@ End-to-end fake-renderer workflow in a temporary data directory.
 
 A user can operate a durable DSS project without interacting with repository
 paths or SQL directly.
+
+---
+
+## Slice PW-08 — Durable prose library and description provenance
+
+### Goal
+
+Persist reusable authored language and compiled descriptions with complete
+revision and source provenance.
+
+### Depends on
+
+PW-01 through PW-07 and the description contracts available from v0.6.0.
+
+### Shared code
+
+**USE** project/scene revision IDs, entity/effect/condition refs,
+DescriptionRequest/Result, moment IDs, style/prose profile IDs, and asset refs.
+
+### Packages
+
+Existing SQLAlchemy/Alembic/platformdirs/Typer.
+
+### Method
+
+Store versioned sub-prose libraries separately from runtime state, including
+stable identity prose, environment/place prose, object/material prose,
+effect/condition variants, profiles, and invariants. Persist compiled passages
+and keyframe sequences with exact input revisions and claim provenance. Scene
+revision must freeze the language it used. Import/export includes all referenced
+language and rejects missing or hash-mismatched dependencies.
+
+### Tests
+
+- old scene/run descriptions replay after prose library revision
+- passage provenance resolves after restart and export/import
+- deleting or editing a current library cannot rewrite historical output
+- missing referenced language/profile fails import clearly
+- CLI can list/show/recompile descriptions through application services
+
+### Completion
+
+Long-lived projects retain both their authored descriptive language and exact
+historical prose outputs.
 
 ---
 

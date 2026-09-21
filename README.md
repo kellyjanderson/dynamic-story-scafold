@@ -48,6 +48,8 @@ dss run advance ...
 
 The MVP release is [v0.1.0](docs/releases/v0.1.0.md). The source-checkout
 installer reports its version with `./scripts/install.sh --version`.
+Post-MVP release outcomes, including the descriptive-prose progression, are in
+the [release roadmap](docs/releases/ROADMAP.md).
 
 The installer delegates Python application installation to **pipx**. pipx uses
 the project's PEP 517/Hatchling metadata to build the package, creates and

@@ -1,4 +1,4 @@
-# Feature Upgrade — External / LLM Decision Providers
+# v0.9.0 — External / LLM Decision and Prose Providers
 
 ## Outcome
 
@@ -7,6 +7,10 @@ selection while the deterministic/stochastic simulation engine retains
 authority over validation, arbitration, resolution, and state mutation.
 
 An external model may propose. It may not directly change world truth.
+
+An optional local or external language model may also realize or revise prose,
+but only inside a supplied fact/sub-prose packet. The deterministic compiler is
+the fallback and the simulation remains authoritative.
 
 ## Packages
 
@@ -262,3 +266,52 @@ entropy.
 
 External decision quality can be studied without contaminating the canonical
 timeline.
+
+---
+
+## Slice EP-06 — Constrained prose realization provider
+
+### Goal
+
+Allow an optional small local or external model to improve prose fluency while
+preserving DSS facts, authored language, and provenance.
+
+### Depends on
+
+Provider protocol/failure policy, deterministic descriptive compiler, and
+grounded prose evaluation.
+
+### Shared code
+
+**USE** DescriptionRequest/Result, fact claims, authored sub-prose, prose
+profiles, avoidances, provider provenance, validation, and fallback policy.
+
+### Packages
+
+Use the official SDK for a hosted provider. For a local model, introduce one
+well-supported runtime only after selecting and measuring a concrete model.
+Fine tuning/training tooling stays optional and outside the production runtime.
+
+### Method
+
+Define a strict structured request containing allowed facts, required identity
+language, optional sub-prose, style controls, and forbidden assertions. Require
+structured response clauses or claim citations that can be validated. Reject or
+fall back when the model adds unsupported action/state/appearance/visibility,
+drops required invariants, times out, or emits invalid output. Record provider,
+model, parameters, source request, validation, and fallback. Build an evaluation
+corpus from deterministic compiler output plus human revisions before deciding
+whether to fine tune a small local model.
+
+### Tests
+
+- fluent grounded variation is accepted with traceable claims
+- hallucinated injury/object/action/appearance is rejected
+- required authored identity and condition facts survive realization
+- timeout/invalid output uses deterministic fallback without blocking mutation
+- same recorded provider response replays; provider calls occur outside DB locks
+
+### Completion
+
+DSS can use model-assisted prose without ceding authority over truth or requiring
+a model for normal operation.

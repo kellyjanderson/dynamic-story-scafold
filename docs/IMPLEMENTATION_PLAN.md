@@ -1084,6 +1084,14 @@ Effects should support:
 - conditions
 - generated forcing
 - generated events
+- optional authored descriptive sub-prose for visible/material/sensory cues
+
+Characters, creatures, objects, environments, environmental components,
+abilities, effects, and conditions may carry user-authored descriptive
+sub-prose. Stable identity language must be separate from state-dependent
+language so a temporary condition composes with rather than replaces identity.
+These records describe supported wording and invariants; they do not create
+world state.
 
 Spell/ability categories should not be hard-coded to human fantasy conventions.
 
@@ -1102,7 +1110,7 @@ The framework must support such abilities without special-case engine code.
 
 ---
 
-# Layer 9 — Cinematic observer
+# Layer 9 — Cinematic observer and narratable moment
 
 The cinematic observer does not decide what happens.
 
@@ -1133,15 +1141,22 @@ The highest-scoring moment becomes the render frame.
 
 The observer may suppress valid simulation details that would clutter the image.
 
+The selected moment also supports a grounded prose brief. It separates
+simulation truth, visible/sensory projection, applicable user-authored
+sub-prose, composition guidance, and explicit omissions. Concise natural prose
+is the first descriptive output; it should read as a story passage and remain
+useful when passed to ChatGPT for image creation.
+
 Example:
 
 A Bubble Augur may have acted successfully while its effect is nearly invisible in the selected frame.
 
 ---
 
-# Layer 10 — Visual direction and prompt compilation
+# Layer 10 — Descriptive prose and visual direction
 
-The prompt compiler converts the selected cinematic moment into renderer instructions.
+The descriptive compiler converts the selected cinematic moment into coherent,
+grounded prose. Renderer instructions are a downstream derived representation.
 
 It should consume:
 
@@ -1152,8 +1167,13 @@ It should consume:
 - camera specification
 - style profile
 - continuity references
+- applicable authored sub-prose
+- prose profile and intended use
 
-It should not invent new actions or outcomes.
+It should not invent new actions, outcomes, appearances, visibility, or causal
+relationships. Output should use complete sentences and paragraphs rather than
+image-generator keyword syntax. Claim-level provenance keeps the prose
+inspectable.
 
 ## Style profiles
 
@@ -1219,7 +1239,6 @@ Future adapters may target:
 - local diffusion models
 - video generation
 - 3D staging
-- prose
 - storyboard layouts
 
 Renderer-specific APIs should remain outside the simulation core.
@@ -1363,27 +1382,29 @@ to be executed through chained implementation prompts.
 
 Implementation order:
 
-1. **MVP — complete bounded simulation loop**
+1. **v0.1.0 / MVP — complete bounded simulation loop**
    - `docs/implementation/01_MVP_SIMULATION_LOOP.md`
-2. **Timeline branching / multiverse operations**
+2. **v0.2.0 — timeline branching / multiverse operations**
    - `docs/implementation/02_TIMELINE_BRANCHING.md`
-3. **Spatial and perception fidelity**
+3. **v0.3.0 — spatial and perception fidelity**
    - `docs/implementation/03_SPATIAL_PERCEPTION.md`
-4. **Advanced interactions, reactions, and effects**
+4. **v0.4.0 — advanced interactions, reactions, effects, and authored sub-prose**
    - `docs/implementation/04_INTERACTIONS_EFFECTS.md`
-5. **Cinematic observer**
+5. **v0.5.0 — cinematic observer and narratable moments**
    - `docs/implementation/05_CINEMATIC_OBSERVER.md`
-6. **Prompt compiler and renderer adapters**
+6. **v0.6.0 — descriptive prose, keyframe descriptions, and renderer adapters**
    - `docs/implementation/06_RENDER_PIPELINE.md`
-7. **Durable campaigns, workflow, and CLI**
+7. **v0.7.0 — durable campaigns, prose libraries, workflow, and CLI**
    - `docs/implementation/07_PERSISTENCE_WORKFLOW.md`
-8. **Evaluation, feedback, and large-scale exploration**
+8. **v0.8.0 — simulation/prose evaluation, feedback, and exploration**
    - `docs/implementation/08_EVALUATION_EXPLORATION.md`
-9. **External / LLM decision providers**
+9. **v0.9.0 — constrained external decision and prose providers**
    - `docs/implementation/09_EXTERNAL_DECISION_PROVIDERS.md`
 
 See `docs/implementation/README.md` for orchestration rules, slice boundaries,
-and handoff requirements.
+and handoff requirements. See `docs/releases/ROADMAP.md` for release-level user
+outcomes and `project/Plans/post-mvp-implementation-slices.md` for authoritative
+completion state.
 
 The MVP remains renderer-independent. Its completion criterion is a fully
 inspectable, replayable, branch-capable simulation round from Hollow Bank.

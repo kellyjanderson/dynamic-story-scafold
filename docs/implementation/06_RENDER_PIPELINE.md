@@ -1,12 +1,17 @@
-# Feature Upgrade — Prompt Compiler and Renderer Adapters
+# v0.6.0 — Descriptive Prose and Renderer Adapters
 
 ## Outcome
 
-Compile a selected cinematic moment into a renderer-neutral request and deliver
-that request through replaceable renderer adapters.
+Compile a selected cinematic moment and authored sub-prose into coherent,
+grounded descriptive prose, then optionally deliver a derived request through
+replaceable renderer adapters.
 
 Rendering remains downstream. A renderer can fail, retry, or produce an
 unattractive image without invalidating the simulation timeline.
+
+The canonical descriptive artifact is structured facts plus natural prose. A
+provider-specific image prompt is one derived representation; DSS must not
+degrade user-authored language into disconnected keyword/tag syntax.
 
 ## Packages
 
@@ -22,7 +27,7 @@ Do not build a generic HTTP client wrapper around provider SDKs.
 
 ---
 
-## Slice RP-01 — Style profile model
+## Slice RP-01 — Prose and visual style profile model
 
 ### Goal
 
@@ -42,7 +47,10 @@ No new package.
 
 ### Method
 
-Define a style profile with renderer-neutral fields such as:
+Define a style profile with renderer-neutral prose fields such as narrative
+distance, tense, person, sentence rhythm, description density, sensory priority,
+figurative-language limits, vocabulary register, and named user-authored prose
+profiles, plus visual fields such as:
 
 - aspect ratio
 - realism/stylization target
@@ -91,11 +99,12 @@ Art direction is reusable data rather than prose embedded in rendering code.
 
 ---
 
-## Slice RP-02 — Renderer-neutral RenderRequest
+## Slice RP-02 — DescriptionRequest and renderer-neutral RenderRequest
 
 ### Goal
 
-Define the complete contract between observer and renderer adapter.
+Define the complete descriptive contract and the contract between prose output
+and renderer adapters.
 
 ### Depends on
 
@@ -110,6 +119,18 @@ RP-01 and selected cinematic moment.
 No new package.
 
 ### Method
+
+`DescriptionRequest` should contain structured data:
+
+- selected moment/checkpoint references
+- grounded/visible claim packet with source references
+- applicable user-authored sub-prose
+- prose/style profile
+- continuity and avoidance constraints
+- requested use such as story passage, image description, or keyframe brief
+
+`DescriptionResult` should contain the request ID, compiled prose, sentence or
+clause provenance, omissions/avoidances applied, and compiler/model metadata.
 
 `RenderRequest` should contain structured data:
 
@@ -135,8 +156,8 @@ No new package.
 - final parameters
 - status/error metadata
 
-No prompt string is the canonical render request. Prompt text is one compiled
-representation.
+No provider prompt string is canonical. The DescriptionRequest, grounded prose,
+and RenderRequest are inspectable records; provider wording is derived.
 
 ### Tests
 
@@ -149,12 +170,12 @@ Renderer adapters can consume one stable structured request.
 
 ---
 
-## Slice RP-03 — Prompt compiler
+## Slice RP-03 — Descriptive prose compiler
 
 ### Goal
 
-Compile structured render data into a clear provider-facing text prompt without
-inventing events.
+Compile structured facts and authored sub-prose into clear natural language
+without inventing events.
 
 ### Depends on
 
@@ -170,7 +191,7 @@ No new package.
 
 ### Method
 
-Construct prompt sections from structured facts:
+Construct prose from structured facts:
 
 1. scene/state anchor
 2. primary action and physical causal interaction
@@ -189,8 +210,12 @@ The compiler must distinguish:
 
 It may omit irrelevant truth. It may not add unsupported action.
 
-Keep compiler deterministic for a given RenderRequest unless a specific
+Keep compiler deterministic for a given DescriptionRequest unless a specific
 prompt-variation feature is later introduced.
+
+Output complete, readable sentences and paragraphs suitable for a story or for
+passing to ChatGPT to create an image. Provider adapters may wrap or augment the
+prose with technical request fields, but may not replace it with a keyword list.
 
 ### Tests
 
@@ -202,7 +227,8 @@ prompt-variation feature is later introduced.
 
 ### Completion
 
-A RenderRequest can produce inspectable provider-facing prompt text.
+A DescriptionRequest can produce inspectable grounded prose, and a
+RenderRequest can derive provider-facing instructions from it.
 
 ---
 
@@ -235,7 +261,7 @@ Protocol operations:
 Implement a fake/recording adapter that returns deterministic fixture assets or
 metadata.
 
-Application service chooses adapter; prompt compiler does not.
+Application service chooses adapter; descriptive compiler does not.
 
 ### Tests
 
@@ -388,11 +414,11 @@ simulation truth.
 
 ---
 
-## Slice RP-08 — Render CLI/application workflow
+## Slice RP-08 — Prose/render CLI and application workflow
 
 ### Goal
 
-Expose selection→compile→render→asset inspection.
+Expose selection→describe→render→asset inspection.
 
 ### Depends on
 
@@ -413,6 +439,8 @@ Typer.
 Commands approximately:
 
 - `dss moment select ROUND_ID`
+- `dss describe moment MOMENT_ID --profile PROFILE`
+- `dss description show DESCRIPTION_ID`
 - `dss render request MOMENT_ID --style STYLE`
 - `dss render run REQUEST_ID --adapter NAME`
 - `dss asset show ASSET_ID`
@@ -427,3 +455,46 @@ Full fake-adapter workflow; optional provider integration test.
 
 A completed timeline can produce a traceable image asset without modifying its
 simulation history.
+
+---
+
+## Slice RP-09 — Keyframe description sequence contract
+
+### Goal
+
+Describe a short ordered sequence of grounded keyframes for generative video.
+
+### Depends on
+
+RP-01 through RP-08, continuity references, and selected moments.
+
+### Shared code
+
+**USE** DescriptionRequest/Result, moment chronology, camera hints, state deltas,
+and reference assets. Keep video-provider syntax in adapters.
+
+### Packages
+
+No new package initially.
+
+### Method
+
+Define a keyframe sequence with temporal anchors, stable subject identity,
+start/end state, action phase, motion direction, camera continuity, environment
+continuity, per-frame prose, and explicit invariants/avoidances. Each keyframe
+must reference a real checkpoint or interpolable interval; prose cannot imply a
+transition outside that interval. Support an opening frame, one or more causal
+action beats, and a resolved frame without requiring a video provider.
+
+### Tests
+
+- ordered keyframes preserve identity and unchanged environment facts
+- start/end descriptions match referenced state
+- motion and causal progression do not reverse without a recorded cause
+- absent intermediate events are not invented
+- sequence serializes without provider-specific objects
+
+### Completion
+
+DSS can produce coherent, source-backed keyframe prose ready for use with a
+generative video workflow.

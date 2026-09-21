@@ -1,4 +1,4 @@
-# Feature Upgrade — Evaluation, Feedback, and Large-Scale Exploration
+# v0.8.0 — Evaluation, Feedback, and Large-Scale Exploration
 
 ## Outcome
 
@@ -7,6 +7,9 @@ multi-branch exploration.
 
 Automated evaluation assists debugging/art direction. It does not become an
 authority that rewrites simulation truth or human aesthetic judgment.
+
+This release evaluates descriptive prose for factual grounding, continuity,
+coverage, readability, and usefulness in story/image/keyframe workflows.
 
 ## Packages
 
@@ -132,8 +135,8 @@ render pipeline.
 
 ### Shared code
 
-Use structured RenderRequest; avoid parsing final prompt when structured facts
-are available.
+Use DescriptionRequest/Result and structured RenderRequest; avoid parsing final
+prose/provider wording when structured facts are available.
 
 ### Packages
 
@@ -147,13 +150,14 @@ Check that:
 - described action comes from selected causal records
 - described effects are allowed visible semantics
 - continuity references belong to expected lineage
-- prompt compiler did not introduce unsupported facts
+- descriptive compiler or provider adapter did not introduce unsupported facts
 
-This validates data/prompt consistency, not whether pixels obeyed the prompt.
+This validates data/prose/request consistency, not whether pixels obeyed the
+description.
 
 ### Tests
 
-Intentionally fabricated prompt/request facts are detected.
+Intentionally fabricated prose/request facts are detected.
 
 ### Completion
 
@@ -383,6 +387,52 @@ histories.
 
 A reviewer can compare simulation futures and their visual results with attached
 feedback.
+
+---
+
+## Slice EV-08 — Grounded prose evaluation
+
+### Goal
+
+Evaluate compiled prose against its source packet and intended use without
+silently rewriting it.
+
+### Depends on
+
+EV-01, EV-02, EV-05, and the description/provenance contracts.
+
+### Shared code
+
+Reporting/validation only. **USE** claim provenance, authored sub-prose,
+continuity identity, DescriptionRequest/Result, keyframe sequences, and human
+feedback.
+
+### Packages
+
+No model dependency initially. Add text-analysis packages only when a validated
+metric requires one.
+
+### Method
+
+Report unsupported factual claims, missing required identity/invariants,
+visibility or point-of-view leakage, continuity conflicts, redundant or awkward
+coverage, and suitability for story passage/image description/keyframe use.
+Keep mechanical grounding checks distinct from subjective prose-quality
+feedback. Store evaluator name/version/parameters. Never automatically replace
+historical prose or change simulation truth.
+
+### Tests
+
+- injected unsupported action/state is detected with source location
+- identity and condition continuity errors are detected across keyframes
+- grounded alternative wording is not rejected merely for lexical difference
+- human feedback and mechanical findings remain distinct
+- evaluation order cannot change stored results
+
+### Completion
+
+Users can compare prose and resulting assets with transparent grounding and
+quality evidence.
 
 ---
 
