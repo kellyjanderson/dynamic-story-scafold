@@ -17,6 +17,25 @@ bounded implementation work.
 8. `08_EVALUATION_EXPLORATION.md`
 9. `09_EXTERNAL_DECISION_PROVIDERS.md`
 
+These upgrades are releases v0.2.0 through v0.9.0. Their user-visible outcomes,
+including the descriptive-prose progression, are defined in
+`docs/releases/ROADMAP.md`. The authoritative per-slice completion state is
+`project/Plans/post-mvp-implementation-slices.md`.
+
+## Direct Codex continuation chain
+
+For the user-authorized branch → implementation → qualification → PR → merge →
+cleanup → next-task workflow, use
+`project/Prompts/implement-next-post-mvp-slice.md` unchanged. The continuation
+prompt selects the first unchecked tracker item after refreshing `main`; it does
+not hardcode a slice number. Create a continuation task only after the current
+slice is merged and its branch/worktree is cleaned up. Do not create another
+task after the last tracker item.
+
+Each `REL-*` tracker item is a real release gate. It updates the package and
+installer together, qualifies the installed application, merges those changes,
+then tags and publishes from the merged commit.
+
 Later documents may be implemented partially or reordered when their declared
 dependencies permit it. Do not pull later policy into the MVP merely because it
 is described elsewhere.

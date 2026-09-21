@@ -1,4 +1,4 @@
-# Feature Upgrade — Spatial and Perception Fidelity
+# v0.3.0 — Spatial and Perception Fidelity
 
 ## Outcome
 
@@ -7,6 +7,10 @@ bounded spatial/sensory model.
 
 This upgrade improves what actors can know and where actions can occur. It does
 not change the coordinator's mutation/arbitration ownership.
+
+Descriptive language becomes situated in this release. Authored environmental,
+place, and sensory sub-prose is eligible only when supported by topology,
+distance, visibility, sensory access, and the selected point of view.
 
 ## Packages
 
@@ -353,6 +357,49 @@ query evaluation.
 
 Spatial eligibility is reusable by perception, intent, reaction, and cinematic
 layers.
+
+---
+
+## Slice SP-07 — Spatial and sensory descriptive projection
+
+### Goal
+
+Project spatial truth into a structured set of description-ready place and
+sensory facts.
+
+### Depends on
+
+SP-01 through SP-06.
+
+### Shared code
+
+**USE** positions, topology, visibility, sensory observations, knowledge levels,
+and stable entity/component references. Do not place prose policy in geometry.
+
+### Packages
+
+No new package.
+
+### Method
+
+Allow scene zones, environmental elements, and sensory profiles to provide
+optional human-authored sub-prose keyed by stable IDs and applicability. Build a
+projection service for omniscient and actor-perspective descriptions. It emits
+facts/sub-prose with source references, distance/occlusion context, and sensory
+channel. An actor-perspective projection cannot include facts the actor cannot
+perceive or know.
+
+### Tests
+
+- an occluded visual detail is omitted while an audible detail remains eligible
+- actor perspective does not leak omniscient position/state
+- distance and scale select the appropriate authored detail
+- scenes without sub-prose still produce valid structured projections
+
+### Completion
+
+Downstream prose can describe where subjects are and what is perceptible without
+inventing spatial or sensory access.
 
 ---
 

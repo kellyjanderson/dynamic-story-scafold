@@ -1,4 +1,4 @@
-# Feature Upgrade — Timeline Branching / Multiverse Simulation
+# v0.2.0 — Timeline Branching / Multiverse Simulation
 
 ## Outcome
 
@@ -10,6 +10,10 @@ active timeline without deleting alternatives.
 
 This feature extends the MVP lineage model; it does not create a second
 simulation engine.
+
+Descriptive language begins here as branch-aware explanation. Prose artifacts
+must identify their source branch/checkpoint and may explain recorded divergence;
+they may not merge sibling facts into one account.
 
 ## Packages
 
@@ -304,6 +308,48 @@ CLI/service integration with JSON output.
 ### Completion
 
 Timeline branching can be operated entirely through the application service/CLI.
+
+---
+
+## Slice BR-07 — Branch-grounded descriptive comparison
+
+### Goal
+
+Produce readable comparison prose grounded in the structured branch comparison.
+
+### Depends on
+
+BR-05 and branch/checkpoint provenance.
+
+### Shared code
+
+**USE** comparison records, causal divergence, state diffs, and stable entity
+references. Keep prose realization outside simulation mutation and branch logic.
+
+### Packages
+
+No new package.
+
+### Method
+
+Define a deterministic comparison-description record that contains its factual
+claims and rendered prose. Compose user-readable prose that identifies the
+common ancestor, first causal divergence, and bounded consequences. Each claim
+must retain source branch/checkpoint/path references. Omit unchanged or
+irrelevant facts. Never combine mutually exclusive sibling outcomes as if both
+occurred.
+
+### Tests
+
+- prose identifies the same first divergence as the structured comparison
+- every stated consequence resolves to one sibling's recorded state/history
+- sibling-exclusive facts never appear in the other sibling's account
+- same comparison and prose policy produce identical output
+
+### Completion
+
+Users can read how two possible futures differ without losing causal or branch
+provenance.
 
 ---
 

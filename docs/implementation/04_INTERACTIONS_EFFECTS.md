@@ -1,4 +1,4 @@
-# Feature Upgrade — Advanced Interactions, Reactions, and Effects
+# v0.4.0 — Advanced Interactions, Reactions, and Effects
 
 ## Outcome
 
@@ -7,6 +7,11 @@ system: movement conflicts, grabs/holds, group effects, AoE, persistent effects,
 environment coupling, and more sophisticated reactions.
 
 The coordinator remains single-writer and bounded.
+
+This release introduces authored descriptive sub-prose as domain data for
+characters, objects, environments, environmental elements, effects, and
+conditions. Stable identity prose remains separate from temporary
+state/condition prose.
 
 ## Packages
 
@@ -405,3 +410,50 @@ when they expose a real engine bug.
 
 The interaction engine has property-level evidence against deadlock/livelock and
 order-dependent corruption.
+
+---
+
+## Slice IX-09 — Authored sub-prose and condition composition
+
+### Goal
+
+Define and compose validated user-authored descriptive language for stable
+subjects and runtime conditions/effects.
+
+### Depends on
+
+IX-04, IX-06, IX-07, plus stable entity/effect/condition references.
+
+### Shared code
+
+**EXTEND** definition schemas only with renderer-neutral descriptive records.
+**USE** runtime condition/effect identity and state. Do not store provider prompt
+syntax in simulation definitions.
+
+### Packages
+
+No new package.
+
+### Method
+
+Define reusable sub-prose facets such as identity, material/appearance,
+movement, sensory cues, state variants, and explicit invariants/avoidances.
+Attach them to stable IDs. Composition produces an ordered fact/sub-prose packet,
+not final free prose. Stable identity survives condition changes; temporary
+condition/effect facets appear only while active and are removed when expired.
+Unknown fields and invalid references must fail scene validation rather than be
+silently discarded.
+
+### Tests
+
+- character identity and active soaked/injured/equipped facets compose without
+  overwriting one another
+- expired conditions remove their prose contribution
+- object/environment/effect facets preserve source IDs
+- unsupported or unknown visual/prose schema keys fail clearly
+- authored wording cannot assert a state transition that did not occur
+
+### Completion
+
+The simulator exposes grounded, composable authored language for stable identity
+and changing visible/sensory consequences.

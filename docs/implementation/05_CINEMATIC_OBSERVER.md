@@ -1,4 +1,4 @@
-# Feature Upgrade — Cinematic Observer
+# v0.5.0 — Cinematic Observer and Narratable Moments
 
 ## Outcome
 
@@ -7,6 +7,10 @@ changing what happened.
 
 The observer is a downstream reader. It cannot create actions, modify outcomes,
 or repair inconvenient simulation state.
+
+This release turns selected visible truth into a concise, inspectable prose
+account. It is the first user-facing descriptive output: useful as a story
+passage or as grounded input to later image/keyframe generation.
 
 ## Packages
 
@@ -301,6 +305,52 @@ when the state has not changed.
 
 Successive selected frames respond to state progression rather than producing
 near-duplicates.
+
+---
+
+## Slice CO-07 — Grounded moment brief and concise prose
+
+### Goal
+
+Produce a source-backed moment brief and concise descriptive passage for one
+selected cinematic moment.
+
+### Depends on
+
+CO-01 through CO-06 and the available authored sub-prose/spatial projection.
+
+### Shared code
+
+**USE** selected moment, checkpoint/delta references, visible projection, camera
+hints, continuity links, and authored sub-prose packets. Prose remains an
+observer artifact, never canonical state.
+
+### Packages
+
+No new package.
+
+### Method
+
+Create a structured moment brief separating: established simulation facts,
+visible facts, authored language fragments, composition guidance, omissions,
+and avoidances. Deterministically compose concise natural prose in complete
+sentences. Prefer causal action and concrete sensory detail. Do not use terse
+keyword lists or image-generator prompt syntax. Retain claim-level source
+references so each sentence can be audited.
+
+### Tests
+
+- every factual clause maps to a brief claim/source
+- invisible/nonvisual facts are omitted unless the chosen perspective supports
+  a sensory description
+- authored identity wording remains consistent across successive moments
+- absent injury, arrival, object, effect, or action is never introduced
+- output is readable as prose, not a comma-separated tag list
+
+### Completion
+
+A stored round can yield an auditable concise passage describing one real
+moment.
 
 ---
 
