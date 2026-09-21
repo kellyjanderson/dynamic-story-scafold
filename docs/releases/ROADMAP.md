@@ -114,4 +114,3 @@ Every version ends with a release slice that:
 4. adds user-facing release notes;
 5. merges the release PR before creating the annotated Git tag;
 6. publishes a GitHub release and verifies its assets and target commit.
-

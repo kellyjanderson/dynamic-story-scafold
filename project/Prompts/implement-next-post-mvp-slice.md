@@ -60,4 +60,3 @@ After merge and cleanup, re-read the tracker from updated `main`:
 Do not implement a later slice, start continuation early, reuse a merged branch,
 or let generated prose invent events, appearances, state, visibility, or causal
 relationships absent from its grounded inputs.
-
