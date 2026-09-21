@@ -1,6 +1,20 @@
 #!/bin/sh
 set -eu
 
+installer_version=0.1.0
+
+case ${1-} in
+  --version)
+    printf 'DSS installer %s\n' "$installer_version"
+    exit 0
+    ;;
+  '') ;;
+  *)
+    printf 'Usage: %s [--version]\n' "$0" >&2
+    exit 2
+    ;;
+esac
+
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 run_pipx() {
@@ -28,7 +42,7 @@ EOF
   exit 1
 }
 
-echo "==> Installing Dynamic Story Scaffold with pipx"
+echo "==> Installing Dynamic Story Scaffold with pipx (installer $installer_version)"
 run_pipx install --force "$repo_root"
 run_pipx ensurepath >/dev/null 2>&1 || true
 

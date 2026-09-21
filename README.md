@@ -46,6 +46,9 @@ dss run start ...
 dss run advance ...
 ```
 
+The MVP release is [v0.1.0](docs/releases/v0.1.0.md). The source-checkout
+installer reports its version with `./scripts/install.sh --version`.
+
 The installer delegates Python application installation to **pipx**. pipx uses
 the project's PEP 517/Hatchling metadata to build the package, creates and
 manages the isolated application environment, and exposes the declared command
