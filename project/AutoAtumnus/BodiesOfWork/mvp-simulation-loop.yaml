@@ -1,0 +1,48 @@
+schema_version: 1
+id: mvp-simulation-loop
+title: Dynamic Story Scaffold MVP simulation loop
+project: kellyjanderson/dynamic-story-scafold
+defaults:
+  adapter_profile: codex-native
+  on_error: agent_repair
+  delivery: pull_request
+  repository_lifecycle_owner: codex-agent
+work_orders:
+- id: mvp-01-run-lineage-snapshots
+  path: ../WorkOrders/mvp-01-run-lineage-snapshots.md
+- id: mvp-02-round-coordinator
+  path: ../WorkOrders/mvp-02-round-coordinator.md
+  needs:
+  - mvp-01-run-lineage-snapshots
+- id: mvp-03-dependencies-arbitration
+  path: ../WorkOrders/mvp-03-dependencies-arbitration.md
+  needs:
+  - mvp-02-round-coordinator
+- id: mvp-04-baseline-perception
+  path: ../WorkOrders/mvp-04-baseline-perception.md
+  needs:
+  - mvp-03-dependencies-arbitration
+- id: mvp-05-intent-selection
+  path: ../WorkOrders/mvp-05-intent-selection.md
+  needs:
+  - mvp-04-baseline-perception
+- id: mvp-06-action-resolution
+  path: ../WorkOrders/mvp-06-action-resolution.md
+  needs:
+  - mvp-05-intent-selection
+- id: mvp-07-reactions-events-effects
+  path: ../WorkOrders/mvp-07-reactions-events-effects.md
+  needs:
+  - mvp-06-action-resolution
+- id: mvp-08-atomic-round-commit
+  path: ../WorkOrders/mvp-08-atomic-round-commit.md
+  needs:
+  - mvp-07-reactions-events-effects
+- id: mvp-09-persistence
+  path: ../WorkOrders/mvp-09-persistence.md
+  needs:
+  - mvp-08-atomic-round-commit
+- id: mvp-10-replay-cli
+  path: ../WorkOrders/mvp-10-replay-cli.md
+  needs:
+  - mvp-09-persistence
